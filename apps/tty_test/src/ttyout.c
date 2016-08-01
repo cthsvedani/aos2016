@@ -41,8 +41,24 @@ static size_t sos_debug_print(const void *vData, size_t count) {
 }
 
 size_t sos_write(void *vData, size_t count) {
-    //implement this to use your syscall
-    return sos_debug_print(vData, count);
+	const char *realdata = vData;
+
+	size_t i = count;
+	int k = 0;
+	while(i > 0 ) {
+		int j;
+		seL4_SetMR(0, 1);
+		for(j = 1; j < i && j < seL4_MsgMaxLength; j++) {
+			seL4_SetMR(j, realdata[seL4_MsgMaxLength*k + j-1]);
+		}
+		seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, j+1);
+		seL4_SetTag(tag);
+		k++;
+		seL4_MessageInfo_t reply = seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+		i -= seL4_GetMR(0);
+	}
+
+	return count;
 }
 
 size_t sos_read(void *vData, size_t count) {

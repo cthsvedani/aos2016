@@ -55,6 +55,8 @@ extern char _cpio_archive[];
 
 const seL4_BootInfo* _boot_info;
 
+struct serial* serial;
+
 
 struct {
 
@@ -76,6 +78,7 @@ struct {
  * A dummy starting syscall
  */
 #define SOS_SYSCALL0 0
+#define SOS_SYSCALL1 1
 
 seL4_CPtr _sos_ipc_ep_cap;
 seL4_CPtr _sos_interrupt_ep_cap;
@@ -107,6 +110,20 @@ void handle_syscall(seL4_Word badge, int num_args) {
         seL4_Send(reply_cap, reply);
 
         break;
+
+	case SOS_SYSCALL1:
+		{
+			char buf[seL4_MsgMaxLength];
+			for(int i = 1; i < num_args; i++) {
+				buf[i-1] = seL4_GetMR(i);
+			}
+			int ret;
+			ret = serial_send(serial, buf, num_args);
+			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+			seL4_SetMR(0, ret);
+			seL4_Send(reply_cap, reply);
+			break;
+		}
 
     default:
         printf("Unknown syscall %d\n", syscall_number);
@@ -406,6 +423,9 @@ int main(void) {
 
     /* Initialise the network hardware */
     network_init(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_NETWORK));
+
+	/* Initialise serial port */
+	serial = serial_init();
 
     /* Start the user application */
     start_first_process(TTY_NAME, _sos_ipc_ep_cap);
