@@ -119,7 +119,6 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			}
 			int ret;
 			ret = serial_send(serial, buf, num_args - 1);
-			dprintf(0, "ret %d", ret);
 			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
 			seL4_SetMR(0, ret);
 			seL4_Send(reply_cap, reply);

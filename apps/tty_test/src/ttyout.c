@@ -45,8 +45,6 @@ size_t sos_write(void *vData, size_t count) {
 
 	int left = count;
 	int read = 0;
-	seL4_DebugPutChar('k');
-	sos_debug_print(vData, count);
 	while(left > 0 ) {
 		int j;
 		seL4_SetMR(0, 1);
@@ -57,11 +55,10 @@ size_t sos_write(void *vData, size_t count) {
 		seL4_SetTag(tag);
 		seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
 		int sent = (int)seL4_GetMR(0);
-		seL4_DebugPutChar(sent);
-		read = read + j;
-		left = left - j;
+		read = read + sent;
+		left = left - sent;
 	}
-	return count;
+	return read;
 }
 
 size_t sos_read(void *vData, size_t count) {
