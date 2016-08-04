@@ -3,6 +3,8 @@
 #include "platsupport/plat/epit_constants.h"
 #include <assert.h>
 
+#include <epit.h>
+
 /*
  * Initialise driver. Performs implicit stop_timer() if already initialised.
  *    interrupt_ep:       A (possibly badged) async endpoint that the driver
@@ -13,6 +15,9 @@
 int irq;
 seL4_IRQHandler _irq_cap;
 static seL4_CPtr _irq_ep;
+
+
+//Control Register Defines;
 
 /*******************
  *** IRQ handler ***
@@ -62,4 +67,57 @@ int start_timer(seL4_CPtr interrupt_ep){
 	//Map the device into the drivers virtual address space
 	seL4_Word vstart = map_device(EPIT1_DEVICE_PADDR, 40);
 
+}
+
+/*
+Functions to Manage hardware. Defines located in epit.h.
+
+Init will clear Enabled, Input Overwrite and Output Mode.
+It will enable Peripheral Clock, Enable mode 1 (LR or 0xFFFF_FFFF), interupts and Sets Reload mode
+
+The Prescale is 3300, or 1 count every 0.00005 seconds.
+*/
+
+void epit_init(EPIT timer){
+	uint32_t *CR = &(timer.REG_Control);
+	*CR &= (0xFFFF ^ (EPIT_EN | EPIT_I_OVW | EPIT_OCI_EN | EPIT_OM | EPIT_PRESCALE_MSK | EPIT_CLK_MSK); //Disable the timer, Interrupt and Output of the Timer
+	*CR |= (EPIT_PRESCALE_CONST | EPIT_CLK_PERIPHERAL | EPIT_RLD); //Set Prescaler to defined prescale value, set to periph clock, and enable reloading
+	timer.REG_Status = 1; //Clear Status Register
+	*CR |= (EPIT_EN_MOD | EPIT_OCI_EN); //Timer will reset from 0xFFFF_FFFF or Load Value
+	//Timer is ready to go.
+}
+
+void epit_setTime(EPIT timer, uint32_t milliseconds, int reset){
+	//IF reset is non-zero We'll tell the timer to restart from our new value.
+	if(reset){
+		timer.REG_Control |= EPIT_I_OVW;	
+	}
+
+	uint32_t newCount = milliseconds * 20; //Prescaler is set for 0.05 of a millisecond.
+	timer.REG_Load = newCount;
+
+	if(reset){
+		timer.REG_Control &= (0xFFFF ^ EPIT_I_OVW);
+	}
+
+}
+
+void epit_startTimer(EPIT timer){
+	timer.REG_Control |= EPIT_EN;
+}
+
+void stop_timer(EPIT timer){
+	timer.REG_Control &= (0xFFFF ^ EPIT_EN);
+}
+
+int epit_timerRunning(EPIT timer){
+	return (timer.REG_Control & EPIT_EN);
+}
+
+uint32_t epit_getCount(EPIT timer){
+	return (timer.REG_Counter);
+}
+
+uint32_t epit_currentCompare(EPIT timer){
+	return (timer.REG_Compare);
 }
