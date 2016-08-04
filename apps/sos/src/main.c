@@ -20,12 +20,16 @@
 #include <elf/elf.h>
 #include <serial/serial.h>
 
+#include <clock/clock.h>
+
 #include "network.h"
 #include "elf.h"
 
 #include "ut_manager/ut.h"
 #include "vmem_layout.h"
 #include "mapping.h"
+
+#include "clock/clock.h"
 
 #include <autoconf.h>
 
@@ -44,6 +48,7 @@
 /* All badged IRQs set high bet, then we use uniq bits to
  * distinguish interrupt sources */
 #define IRQ_BADGE_NETWORK (1 << 0)
+#define IRQ_BADGE_CLOCK (1 << 1)
 
 #define TTY_NAME             CONFIG_SOS_STARTUP_APP
 #define TTY_PRIORITY         (0)
@@ -148,8 +153,9 @@ void syscall_loop(seL4_CPtr ep) {
             /* Interrupt */
             if (badge & IRQ_BADGE_NETWORK) {
                 network_irq();
-            }
-
+            } else if(badge & IRQ_BADGE_CLOCK) {
+				clock_irq();
+			}
         }else if(label == seL4_VMFault){
             /* Page fault */
             dprintf(0, "vm fault at 0x%08x, pc = 0x%08x, %s\n", seL4_GetMR(1),
@@ -424,8 +430,11 @@ int main(void) {
     /* Initialise the network hardware */
     network_init(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_NETWORK));
 
-	/* Initialise serial port */
-	serial = serial_init();
+    /* Initialise serial port */
+    serial = serial_init();
+
+    /* Initialise timers */
+    start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));
 
     /* Start the user application */
     start_first_process(TTY_NAME, _sos_ipc_ep_cap);

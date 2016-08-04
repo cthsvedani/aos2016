@@ -12,6 +12,9 @@
 #define _CLOCK_H_
 
 #include <sel4/sel4.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 /*
  * Return codes for driver functions
@@ -71,5 +74,7 @@ timestamp_t time_stamp(void);
  * Returns CLOCK_R_OK iff successful.
  */
 int stop_timer(void);
+
+void clock_irq(void);
 
 #endif /* _CLOCK_H_ */
