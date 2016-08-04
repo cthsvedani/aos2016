@@ -30,6 +30,7 @@
 #include "mapping.h"
 
 #include "clock/clock.h"
+#include "timer.h"
 
 #include <autoconf.h>
 

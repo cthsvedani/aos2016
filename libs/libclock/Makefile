@@ -21,7 +21,8 @@ HDRFILES := \
     $(wildcard ${SOURCE_DIR}/include/*) \
     $(wildcard ${SOURCE_DIR}/plat_include/$(PLAT)/*) \
     $(wildcard ${SOURCE_DIR}/arch_include/${ARCH}/*) \
-	$(wildcard $(SOURCE_DIR)/include/*)
+	$(wildcard $(SOURCE_DIR)/include/*) \
+	$(wildcard $(SOURCE_DIR)/*)
 
 CFLAGS := -g -O0
 include $(SEL4_COMMON)/common.mk

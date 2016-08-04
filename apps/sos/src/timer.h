@@ -8,13 +8,14 @@
  * @TAG(NICTA_BSD)
  */
 
-#ifndef _CLOCK_H_
-#define _CLOCK_H_
+#ifndef _TIMER_H_
+#define _TIMER_H_
 
 #include <sel4/sel4.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <clock/epit.h>
 
 /*
  * Return codes for driver functions
@@ -73,7 +74,8 @@ timestamp_t time_stamp(void);
  *
  * Returns CLOCK_R_OK iff successful.
  */
-int stop_timer(void);
+void stop_EPIT(EPIT timer);
 
+void clock_irq(void);
 
-#endif /* _CLOCK_H_ */
+#endif /* _TIMER_H_ */
