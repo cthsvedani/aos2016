@@ -15,6 +15,7 @@ typedef struct {
 #define EPIT_STOP_EN (1 << 21)
 #define EPIT_OM (3 << 22)
 #define EPIT_WAIT_EN (1 << 19)
+#define EPIT_DB_EN (1 << 18)
 #define EPIT_I_OVW (1 << 17)
 #define EPIT_SW_R (1 << 16)
 #define EPIT_PRESCALE_CONST (3300 << 4)
@@ -24,7 +25,8 @@ typedef struct {
 #define EPIT_EN_MOD (1 << 1)
 #define EPIT_EN (1 << 0)
 
-void epit_init(EPIT timer);
+//void epit_init(EPIT timer);
+void epit_init(EPIT *timer);
 void epit_setTime(EPIT timer, uint32_t milliseconds, int reset);
 void epit_startTimer(EPIT timer);
 void epit_stopTimer(EPIT timer);
