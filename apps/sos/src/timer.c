@@ -71,11 +71,8 @@ int start_timer(seL4_CPtr interrupt_ep){
 	//badged copy of the asyncEP
 	_irq_ep = interrupt_ep;
 
-	//the hardware interrupt line number
-	irq = EPIT1_INTERRUPT;
-
 	//create interrupt handling cap
-	_irq_cap = enable_irq(irq, _irq_ep);
+	_irq_cap = enable_irq( EPIT1_INTERRUPT, _irq_ep);
 
 	//Map the device into the drivers virtual address space
     uintptr_t pstart = (uintptr_t)EPIT1_DEVICE_PADDR;
@@ -106,50 +103,47 @@ The Prescale is 3300, or 1 count every 0.00005 seconds.
 */
 
 void epit_init(EPIT *timer){
-    uint32_t *CR = &(timer->REG_Control);
+    volatile uint32_t *CR = &(timer->REG_Control);
 
     //1. Disable the EPIT - set EN=0 in CR
     //2. Disable EPIT output
-    //3. Disable EPIT interrupts
-    *CR &= 0;
+   //3. Disable EPIT interrupts
+    /**CR &= ;*/
 
     //4. Program CLKSRC
     //Set clock source
-    *CR |= EPIT_CLK_PERIPHERAL;
-    *CR |= (EPIT_PRESCALE_CONST | EPIT_CLK_PERIPHERAL | EPIT_RLD); 
+    /**CR |= EPIT_CLK_PERIPHERAL;*/
+    /**CR |= (EPIT_PRESCALE_CONST | EPIT_CLK_PERIPHERAL | EPIT_RLD); */
 
     //5. Clear the EPIT status register
-    timer->REG_Status = 1; //Clear Status Register
+    /*timer->REG_Status = 1; //Clear Status Register*/
 
     //6. Enable EPIT
     //EPIT enabled
-    *CR |= (EPIT_EN_MOD);
-    //set Load register
-    timer->REG_Load = 100;
+    /**CR |= (EPIT_EN_MOD);*/
 
     //Activate in stop mode/ wait mode / debug mode
     /**CR |= (EPIT_STOP_EN | EPIT_WAIT_EN | EPIT_DB_EN);*/
 
     //Write to load register results in immediate overwriting of counter value
-    *CR |= (EPIT_I_OVW);
-    timer->REG_Load = 100;
-    *CR &= (0xFFFF ^ (EPIT_I_OVW));
+    /**CR |= (EPIT_I_OVW);*/
+    /*timer->REG_Load = 200000;*/
+    /**CR &= (0xFFFF ^ (EPIT_I_OVW));*/
 
     //7.Enable EPIT
     //EPIT enabled
-    *CR |= (EPIT_EN);
     //Compare Interrupt enabled
-    *CR |= (EPIT_OCI_EN);
+    /**CR |= (EPIT_OCI_EN);*/
+    /**CR |= (EPIT_EN);*/
 
-    timer->REG_Status = 1; //Clear Status Register
-
-    //Disable the timer, Interrupt and Output of the Timer
-    /**CR &= 0xFFFF | (EPIT_EN | EPIT_I_OVW | EPIT_OCI_EN | EPIT_OM | EPIT_PRESCALE_MSK | EPIT_CLK_MSK); */
     //Set Prescaler to defined prescale value, set to periph clock, and enable reloading
-    /**CR |= (EPIT_PRESCALE_CONST | EPIT_CLK_PERIPHERAL | EPIT_RLD); */
-    /*timer->REG_Status = 1; //Clear Status Register*/
-    /**CR |= (EPIT_EN_MOD | EPIT_OCI_EN); //Timer will reset from 0xFFFF_FFFF or Load Value*/
+    *CR |= (EPIT_PRESCALE_CONST | EPIT_CLK_PERIPHERAL | EPIT_RLD); 
+    timer->REG_Status = 1; //Clear Status Register
+    //while(timer->REG_Status);
+    *CR |= (EPIT_EN_MOD | EPIT_OCI_EN | EPIT_I_OVW); //Timer will reset from 0xFFFF_FFFF or Load Value
 	//Timer is ready to go.
+    timer->REG_Load = 20000;
+    *CR |= EPIT_EN;
 }
 
 void epit_setTime(EPIT timer, uint32_t milliseconds, int reset){
