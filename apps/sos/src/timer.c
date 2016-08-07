@@ -22,10 +22,10 @@
  *
  * Returns CLOCK_R_OK iff successful.
  */
-seL4_IRQHandler _irq_cap;
+volatile uint64_t timestamp_overflows;
 static seL4_CPtr _irq_ep;
-EPIT epit[2];
-EPIT *epit_1;
+timer timers[2];
+
 
 
 //Control Register Defines;
@@ -35,18 +35,26 @@ EPIT *epit_1;
  *******************/
 void 
 clock_irq(void) {
-    int err;
-    /* skip if the network was not initialised */
+    /* skip if the timer is not initialised */
     if(_irq_ep == seL4_CapNull){
         return;
     }
 
 	/*	Handle IRQ */
-    dprintf(0, "got IRQ");
+    if(timers[0].reg->REG_Status) {
+        handle_irq(timers[0]);
+    }
+    if(timers[1].reg->REG_Status) {
+        timestamp_overflows += 1;
+        handle_irq(timers[1]);
+    }
+}
 
-	/*	Ack IRQ */
-    epit_1->REG_Status = 1;
-    err = seL4_IRQHandler_Ack(_irq_cap);
+void
+handle_irq(timer timer) {
+    int err;
+    timer.reg->REG_Status = 1;
+    err = seL4_IRQHandler_Ack(timer.cap);
     assert(!err);
 }
 
@@ -59,7 +67,6 @@ enable_irq(int irq, seL4_CPtr aep) {
 
     /* Assign to an end point */
     err = seL4_IRQHandler_SetEndpoint(cap, aep);
-    dprintf(0, "enable IRQ\n");
 
     /* Ack the handler before continuing */
     err = seL4_IRQHandler_Ack(cap);
@@ -72,25 +79,26 @@ int start_timer(seL4_CPtr interrupt_ep){
 	_irq_ep = interrupt_ep;
 
 	//create interrupt handling cap
-	_irq_cap = enable_irq( EPIT1_INTERRUPT, _irq_ep);
+    timers[0].cap = enable_irq( EPIT1_INTERRUPT, _irq_ep);
+    timers[1].cap = enable_irq( EPIT2_INTERRUPT, _irq_ep);
 
 	//Map the device into the drivers virtual address space
-    uintptr_t pstart = (uintptr_t)EPIT1_DEVICE_PADDR;
-	seL4_Word vstart = map_device((void*)pstart, 40);
+    uintptr_t pstart_EPIT1 = (uintptr_t)EPIT1_DEVICE_PADDR;
+    uintptr_t pstart_EPIT2 = (uintptr_t)EPIT2_DEVICE_PADDR;
+    timers[0].reg = (EPIT *) map_device((void*)pstart_EPIT1, 20);
+    timers[1].reg = (EPIT *) map_device((void*)pstart_EPIT2, 20);
+    
+    //Set up periodic clock
+    timers[0].source = 1;
+    timers[1].source = 2;
 
-    epit_1 = (EPIT *) vstart;
-    epit_init(epit_1);
-    dprintf(0, "EPIT1_CR %d \n", epit_1->REG_Control);
-    dprintf(0, "EPIT1_SR %d \n", epit_1->REG_Status);
-    dprintf(0, "EPIT1_LR %d \n", epit_1->REG_Load);
-    dprintf(0, "EPIT1_CMPR %d \n", epit_1->REG_Compare);
-    dprintf(0, "EPIT1_CNR %d \n", epit_1->REG_Counter);
+    epit_init(timers[0].reg);
+    epit_init(timers[1].reg);
 
-    dprintf(0, "EPIT1_CR address %x \n", &(epit_1->REG_Control));
-
-    /*epit_setTime(*epit_1, 10, 1);*/
-    /*epit_startTimer(*epit_1);*/
-    dprintf(0, "EPIT1_CNR %d \n", epit_1->REG_Counter);
+    epit_setTime(timers[0].reg, 10000, 1);
+    epit_startTimer(timers[0].reg);
+    epit_setTimerClock(timers[1].reg);
+    epit_startTimer(timers[1].reg);
 }
 
 /*
@@ -105,78 +113,61 @@ The Prescale is 3300, or 1 count every 0.00005 seconds.
 void epit_init(EPIT *timer){
     volatile uint32_t *CR = &(timer->REG_Control);
 
-    //1. Disable the EPIT - set EN=0 in CR
-    //2. Disable EPIT output
-   //3. Disable EPIT interrupts
-    /**CR &= ;*/
-
-    //4. Program CLKSRC
-    //Set clock source
-    /**CR |= EPIT_CLK_PERIPHERAL;*/
-    /**CR |= (EPIT_PRESCALE_CONST | EPIT_CLK_PERIPHERAL | EPIT_RLD); */
-
-    //5. Clear the EPIT status register
-    /*timer->REG_Status = 1; //Clear Status Register*/
-
-    //6. Enable EPIT
-    //EPIT enabled
-    /**CR |= (EPIT_EN_MOD);*/
-
-    //Activate in stop mode/ wait mode / debug mode
-    /**CR |= (EPIT_STOP_EN | EPIT_WAIT_EN | EPIT_DB_EN);*/
-
-    //Write to load register results in immediate overwriting of counter value
-    /**CR |= (EPIT_I_OVW);*/
-    /*timer->REG_Load = 200000;*/
-    /**CR &= (0xFFFF ^ (EPIT_I_OVW));*/
-
-    //7.Enable EPIT
-    //EPIT enabled
-    //Compare Interrupt enabled
-    /**CR |= (EPIT_OCI_EN);*/
-    /**CR |= (EPIT_EN);*/
-
     //Set Prescaler to defined prescale value, set to periph clock, and enable reloading
     *CR |= (EPIT_PRESCALE_CONST | EPIT_CLK_PERIPHERAL | EPIT_RLD); 
     timer->REG_Status = 1; //Clear Status Register
-    //while(timer->REG_Status);
-    *CR |= (EPIT_EN_MOD | EPIT_OCI_EN | EPIT_I_OVW); //Timer will reset from 0xFFFF_FFFF or Load Value
-	//Timer is ready to go.
-    timer->REG_Load = 20000;
-    *CR |= EPIT_EN;
+    *CR |= (EPIT_EN_MOD | EPIT_OCI_EN); //Timer will reset from 0xFFFF_FFFF or Load Value
 }
 
-void epit_setTime(EPIT timer, uint32_t milliseconds, int reset){
+void epit_setTimerClock(EPIT *timer) {
+    timer->REG_Control &= (0xFFFFFFFF ^ (EPIT_RLD));
+    timer->REG_Control &= (0xFFFFFFFF ^ (EPIT_PRESCALE_MSK));
+}
+
+uint64_t epit_getCurrentTimestamp() {
+    //Get number of ticks
+    uint64_t count = (uint64_t) 0x00000000 <<32 | (0xFFFFFFFF - timers[1].reg->REG_Counter);
+
+    //Convert to ms
+    count *= EPIT_CLOCK_TICK;
+
+    //Add overflow values
+    uint64_t timestamp = timestamp_overflows * EPIT_CLOCK_OVERFLOW;
+
+    timestamp = timestamp + count;
+    return timestamp;
+}
+
+void epit_setTime(EPIT *timer, uint32_t milliseconds, int reset){
 	//IF reset is non-zero We'll tell the timer to restart from our new value.
-	if(reset){
-		timer.REG_Control |= EPIT_I_OVW;	
-	}
+    if(reset){
+		timer->REG_Control |= EPIT_I_OVW;	
+    }
 
-	uint32_t newCount = milliseconds * 20; //Prescaler is set for 0.05 of a millisecond.
-	timer.REG_Load = newCount;
+	uint32_t newCount = milliseconds * EPIT_TICK_PER_MS; //Prescaler is set for 0.05 of a millisecond.
+	timer->REG_Load = newCount;
 
-	if(reset){
-        timer.REG_Control &= (0xFFFF ^(EPIT_I_OVW));
-	}
-
+    if(reset){
+        timer->REG_Control &= (0xFFFFFFFF ^(EPIT_I_OVW));
+    }
 }
 
-void epit_startTimer(EPIT timer){
-	timer.REG_Control |= EPIT_EN;
+void epit_startTimer(EPIT *timer){
+	timer->REG_Control |= EPIT_EN;
 }
 
-void stop_EPIT(EPIT timer){
-	timer.REG_Control &= (0xFFFF ^ EPIT_EN);
+void epit_stopTimer(EPIT *timer){
+	timer->REG_Control &= (0xFFFFFFFF ^ EPIT_EN);
 }
 
-int epit_timerRunning(EPIT timer){
-	return (timer.REG_Control & EPIT_EN);
+int epit_timerRunning(EPIT *timer){
+	return (timer->REG_Control & EPIT_EN);
 }
 
-uint32_t epit_getCount(EPIT timer){
-	return (timer.REG_Counter);
+uint32_t epit_getCount(EPIT *timer){
+	return (timer->REG_Counter);
 }
 
-uint32_t epit_currentCompare(EPIT timer){
-	return (timer.REG_Compare);
+uint32_t epit_currentCompare(EPIT *timer){
+	return (timer->REG_Compare);
 }

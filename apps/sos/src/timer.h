@@ -27,6 +27,7 @@
 
 typedef uint64_t timestamp_t;
 typedef void (*timer_callback_t)(uint32_t id, void *data);
+struct
 
 
 /*
@@ -75,6 +76,7 @@ timestamp_t time_stamp(void);
  * Returns CLOCK_R_OK iff successful.
  */
 void stop_EPIT(EPIT timer);
+void handle_irq(timer timer);
 
 void clock_irq(void);
 

@@ -155,7 +155,6 @@ void syscall_loop(seL4_CPtr ep) {
             if (badge & IRQ_BADGE_NETWORK) {
                 network_irq();
             } else if(badge & IRQ_BADGE_CLOCK) {
-                dprintf(0, "received clock interrupt\n");
 				clock_irq();
 			}
         }else if(label == seL4_VMFault){
