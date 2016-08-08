@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <clock/epit.h>
+#include <clock/clock.h>
 
 /*
  * Return codes for driver functions
@@ -26,8 +27,23 @@
 #define CLOCK_R_FAIL (-3)       /* operation failed for other reason */
 #define CLOCK_MAX_TIMERS 32
 
-typedef uint64_t timestamp_t;
-typedef void (*timer_callback_t)(uint32_t id, void *data);
+typedef struct callback_node_t callback_node_t;
+struct callback_node_t
+{ 
+    callback_node_t *next;
+    timer_callback_t callback;
+    int id;
+    uint64_t timestamp;
+};
+
+typedef struct {
+    callback_node_t *head;
+} callback_queue;
+
+/*
+ * Register callback timer, add to the linked list of callbacks, change timer if necessary
+ */
+uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void *data);
 
 /*
  * Get the next free identifier

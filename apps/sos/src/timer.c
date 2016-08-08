@@ -35,9 +35,8 @@ timer timers[2];
 //The timer id allocation list
 int freelist[CLOCK_MAX_TIMERS];
 
-
-
-//Control Register Defines;
+//The callback queue
+callback_queue callback_queue;
 
 /*******************
  *** IRQ handler ***
@@ -66,6 +65,12 @@ handle_irq(timer timer) {
     err = seL4_IRQHandler_Ack(timer.cap);
     assert(!err);
 }
+
+static void
+testfunc_print(int number) {
+        dprintf(0, "In callback, number: %d, timestamp is %lu\n", number, epit_getCurrentTimestamp());
+}
+
 
 static seL4_CPtr
 enable_irq(int irq, seL4_CPtr aep) {
@@ -104,8 +109,7 @@ int start_timer(seL4_CPtr interrupt_ep){
     epit_init(timers[0].reg);
     epit_init(timers[1].reg);
 
-    epit_setTime(timers[0].reg, 10000, 1);
-    epit_startTimer(timers[0].reg);
+    //Start timer epit1 for timestamps updates
     epit_setTimerClock(timers[1].reg);
     epit_startTimer(timers[1].reg);
 }
@@ -194,4 +198,8 @@ int deallocate_timer_id(int id) {
     if(freelist[id])
         freelist[id] = 0;
     return -1;
+}
+
+uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void *data) {
+
 }
