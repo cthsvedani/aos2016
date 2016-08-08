@@ -44,7 +44,6 @@ typedef struct {
 /*
  * Register callback timer, add to the linked list of callbacks, change timer if necessary
  */
-uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void *data);
 
 /*
  * Get the next free identifier
@@ -102,7 +101,7 @@ timestamp_t time_stamp(void);
  *
  * Returns CLOCK_R_OK iff successful.
  */
-void stop_EPIT(EPIT timer);
+int stop_timer(void);
 void handle_irq(timer timer);
 void handle_irq_callback();
 

@@ -30,8 +30,7 @@ callback_queue queue;
 /*******************
  *** IRQ handler ***
  *******************/
-void 
-clock_irq(void) {
+int timer_interrupt(void) {
 	/*	Handle IRQ */
     if(timers[0].reg->REG_Status) {
         handle_irq(timers[0]);
@@ -41,6 +40,7 @@ clock_irq(void) {
         timestamp_overflows += 1;
         handle_irq(timers[1]);
     }
+    return 0;
 }
 
 void
@@ -239,7 +239,7 @@ int deallocate_timer_id(int id) {
     return -1;
 }
 // On Failure, returns 0. Calling function must check!
-uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void *data) {
+uint32_t register_timer(uint64_t delay, timer_callback_t callback, void *data) {
     //create node
     callback_node_t *node = malloc(sizeof(callback_node_t));
     if(!node){    
@@ -291,3 +291,12 @@ uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void 
             
     return id;
 }
+
+timestamp_t time_stamp(void){
+ return epit_getCurrentTimestamp();
+}
+
+int stop_timer(void){
+	epit_stopTimer(timers[0].reg);
+}
+
