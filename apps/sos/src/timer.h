@@ -24,10 +24,20 @@
 #define CLOCK_R_UINT (-1)       /* driver not initialised */
 #define CLOCK_R_CNCL (-2)       /* operation cancelled (driver stopped) */
 #define CLOCK_R_FAIL (-3)       /* operation failed for other reason */
+#define CLOCK_MAX_TIMERS 32
 
 typedef uint64_t timestamp_t;
 typedef void (*timer_callback_t)(uint32_t id, void *data);
-struct
+
+/*
+ * Get the next free identifier
+ */
+int allocate_timer_id();
+
+/*
+ * Deallocate free identifier
+ */
+int deallocate_timer_id(int id);
 
 
 /*

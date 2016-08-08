@@ -22,9 +22,18 @@
  *
  * Returns CLOCK_R_OK iff successful.
  */
+
+//Number of timer overflows for the periodic timer
 volatile uint64_t timestamp_overflows;
+
+//The irq cap
 static seL4_CPtr _irq_ep;
+
+//Our two timer registers
 timer timers[2];
+
+//The timer id allocation list
+int freelist[CLOCK_MAX_TIMERS];
 
 
 
@@ -170,4 +179,19 @@ uint32_t epit_getCount(EPIT *timer){
 
 uint32_t epit_currentCompare(EPIT *timer){
 	return (timer->REG_Compare);
+}
+
+int allocate_timer_id() {
+    int i;
+    for(i = 0; i < CLOCK_MAX_TIMERS; i++) {
+        if(!freelist[i]) 
+            return freelist[i];
+    }
+    return -1;
+}
+
+int deallocate_timer_id(int id) {
+    if(freelist[id])
+        freelist[id] = 0;
+    return -1;
 }
