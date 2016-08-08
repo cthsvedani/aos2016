@@ -36,7 +36,7 @@ timer timers[2];
 int freelist[CLOCK_MAX_TIMERS];
 
 //The callback queue
-callback_queue callback_queue;
+callback_queue queue;
 
 /*******************
  *** IRQ handler ***
@@ -50,12 +50,42 @@ clock_irq(void) {
 
 	/*	Handle IRQ */
     if(timers[0].reg->REG_Status) {
+        handle_irq_callback();
         handle_irq(timers[0]);
     }
     if(timers[1].reg->REG_Status) {
         timestamp_overflows += 1;
         handle_irq(timers[1]);
     }
+}
+
+void
+handle_irq_callback() {
+    //timer overflow, need more time
+    if(queue.head->timestamp > epit_getCurrentTimestamp()) {
+        uint64_t delay = queue.head->timestamp - epit_getCurrentTimestamp();
+        epit_setTime(timers[0].reg, delay, 1);
+    } else {
+        //fire callback
+        queue.head->callback(queue.head->id, queue.head->data);
+
+        //temp pointer
+        callback_node_t *temp = queue.head;
+
+        //change queue
+        queue.head = queue.head->next;
+
+        //free queue node
+        free(temp);
+
+        //if there is more timers, activate them
+        if(queue.head) {
+            uint64_t delay = epit_getCurrentTimestamp - queue.head->timestamp;
+            epit_setTimer(timers[0].reg, delay, 1);
+            epit_startTimer(timers[0].reg);
+        }
+    }
+        
 }
 
 void
@@ -67,7 +97,7 @@ handle_irq(timer timer) {
 }
 
 static void
-testfunc_print(int number) {
+testfunc_print(int number, void* data) {
         dprintf(0, "In callback, number: %d, timestamp is %lu\n", number, epit_getCurrentTimestamp());
 }
 
@@ -151,13 +181,20 @@ uint64_t epit_getCurrentTimestamp() {
     return timestamp;
 }
 
-void epit_setTime(EPIT *timer, uint32_t milliseconds, int reset){
+void epit_setTime(EPIT *timer, uint64_t milliseconds, int reset){
 	//IF reset is non-zero We'll tell the timer to restart from our new value.
     if(reset){
 		timer->REG_Control |= EPIT_I_OVW;	
     }
 
-	uint32_t newCount = milliseconds * EPIT_TICK_PER_MS; //Prescaler is set for 0.05 of a millisecond.
+    uint32_t newCount;
+    if(milliseconds > (0x00000000FFFFFFFF)) {
+       newCount = 0xFFFFFFFF;
+    } else {
+        newCount = (uint32_t)(milliseconds & 0x00000000FFFFFFFF);
+        newCount *= EPIT_TICK_PER_MS;
+    }
+
 	timer->REG_Load = newCount;
 
     if(reset){
@@ -201,5 +238,43 @@ int deallocate_timer_id(int id) {
 }
 
 uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void *data) {
+    //create node
+    callback_node_t *node = malloc(sizeof(callback_node_t));
+    if(!node)
+        return 0;
+    node->callback = callback;
 
+    int id = allocate_timer_id();
+    if(!id) {
+        free(node);
+        return 0;
+    }
+    node->id = id;
+
+    uint64_t timestamp = epit_getCurrentTimestamp() + delay;
+    node->timestamp = timestamp;
+
+    node->data = data;
+
+    //if the timer is already activated
+    if(queue.head) {
+        //RACE CONDITION
+        //the current timer is before the new timer
+        if(queue.head->timestamp <= timestamp) {
+            queue.head->next = node;
+        } else {
+        //activate the new timer
+            node->next = queue.head;
+            queue.head = node;
+            epit_stopTimer(timers[0].reg);
+            epit_setTime(timers[0].reg, delay, 1);
+            epit_startTimer(timers[0].reg);
+        }
+    } else {
+        queue.head = node;
+        epit_setTime(timers[0].reg, delay, 1);
+        epit_startTimer(timers[0].reg);
+    }
+            
+    return id;
 }

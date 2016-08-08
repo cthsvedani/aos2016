@@ -41,7 +41,7 @@ typedef struct {
 
 //void epit_init(EPIT timer);
 void epit_init(EPIT *timer);
-void epit_setTime(EPIT *timer, uint32_t milliseconds, int reset);
+void epit_setTime(EPIT *timer, uint64_t milliseconds, int reset);
 void epit_startTimer(EPIT *timer);
 void epit_stopTimer(EPIT *timer);
 uint64_t epit_getCurrentTimestamp();

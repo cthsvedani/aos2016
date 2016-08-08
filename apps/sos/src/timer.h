@@ -32,6 +32,7 @@ struct callback_node_t
 { 
     callback_node_t *next;
     timer_callback_t callback;
+    void* data;
     int id;
     uint64_t timestamp;
 };
@@ -103,6 +104,7 @@ timestamp_t time_stamp(void);
  */
 void stop_EPIT(EPIT timer);
 void handle_irq(timer timer);
+void handle_irq_callback();
 
 void clock_irq(void);
 
