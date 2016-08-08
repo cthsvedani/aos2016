@@ -50,39 +50,37 @@ handle_irq_callback() {
     if(queue.head->timestamp > timestamp) {
         uint64_t delay = queue.head->timestamp - timestamp;
         epit_setTime(timers[0].reg, delay, 1);
-    } else {
+    }
+    else {
+      //temp pointer
+       callback_node_t *temp = queue.head;
 
-        //temp pointer
-        callback_node_t *temp = queue.head;
+      //change queue
+      queue.head = queue.head->next;
 
-        //change queue
-        /*queue.head = queue.head->next;*/
-        queue.head = NULL;
+      //In the simple case of one timer, we will reset timer before the callback.
+      //In the harder case where multiple timers need to fire we have to fire the callbacks first.
+      while(queue.head && queue.head->timestamp <= timestamp){
+          callback_node_t *temp2 = queue.head;
+          queue.head = queue.head->next;
+          temp2->callback(temp2->id, temp2->data);
+          free(temp2);
+       }
 
-        /*Activate all timers that should have been fired already*/
-        callback_node_t * cur = queue.head;
-        while(cur && cur->timestamp <= timestamp){
-            cur->callback(cur->id, cur->data);
-            cur = cur->next;
-        }
-        if(cur){
-            uint64_t delay = cur->timestamp - timestamp;
-            epit_setTime(timers[0].reg, delay, 1);
-            epit_startTimer(timers[0].reg);
-        } else {
-            epit_stopTimer(timers[0].reg);
-        }
+ 
+       if(queue.head){
+           uint64_t delay = queue.head->timestamp - timestamp;
+           epit_setTime(timers[0].reg, delay, 1);
+       } else {
+           epit_stopTimer(timers[0].reg);
+       }
 
-        //fire callback
-        temp->callback(temp->id, temp->data);
-
-        //free queue node
-        free(temp);
-     }        
+       temp->callback(temp->id, temp->data);
+       free(temp); 
+   }        
 }
 
-void
-handle_irq(timer timer) {
+void handle_irq(timer timer) {
     int err;
     timer.reg->REG_Status = 1;
     err = seL4_IRQHandler_Ack(timer.cap);
@@ -187,7 +185,7 @@ void epit_setTime(EPIT *timer, uint64_t milliseconds, int reset){
     if(reset){
 		timer->REG_Control |= EPIT_I_OVW;	
     }
-
+    epit_stopTimer(timer);
     uint32_t newCount;
     milliseconds *= EPIT_TICK_PER_MS;
     if(milliseconds > 0xFFFFFFFF) {
@@ -196,18 +194,22 @@ void epit_setTime(EPIT *timer, uint64_t milliseconds, int reset){
        newCount = (uint32_t)milliseconds;
     } 
 	timer->REG_Load = newCount;
-
+    epit_startTimer(timer);
     if(reset){
         timer->REG_Control &= (0xFFFFFFFF ^(EPIT_I_OVW));
     }
 }
 
 void epit_startTimer(EPIT *timer){
-	timer->REG_Control |= EPIT_EN;
+   // for(volatile int i = 0; i < 1; i++);//The timer needs a bit to realise what is going on 
+    asm("nop");
+    timer->REG_Control |= EPIT_EN;
 }
 
 void epit_stopTimer(EPIT *timer){
 	timer->REG_Control &= (0xFFFFFFFF ^ EPIT_EN);
+	asm("nop");
+//	for(volatile int i = 0; i < 1; i++);
 }
 
 int epit_timerRunning(EPIT *timer){
@@ -261,27 +263,29 @@ uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void 
     node->next = NULL;
 
     //if the timer is already activated
-    if(queue.head) {
+    if(queue.head != NULL) {
         //the current timer is before the new timer
        if(queue.head->timestamp <= timestamp) {
            callback_node_t *cur = queue.head;
-           while(cur->next && cur->next->timestamp <= timestamp) {
+           while(cur->next && cur->next->timestamp <= timestamp){
                 cur = cur->next;               
            }
            node->next = cur->next;
            cur->next = node;
-        } else {
-        //activate the new timer
-            node->next = queue.head;
-            queue.head = node;
-            epit_stopTimer(timers[0].reg);
-            epit_setTime(timers[0].reg, delay, 1);
-            epit_startTimer(timers[0].reg);
-        }
-    } else {
+       }
+       else {
+       //activate the new timer
+           node->next = queue.head;
+           queue.head = node;
+           epit_stopTimer(timers[0].reg);
+           epit_setTime(timers[0].reg, delay, 1);
+           epit_startTimer(timers[0].reg);
+       }
+    }
+    else {
         queue.head = node;
+    	epit_stopTimer(timers[0].reg);
         epit_setTime(timers[0].reg, delay, 1);
-        dprintf(0,"");
         epit_startTimer(timers[0].reg);
     }
             

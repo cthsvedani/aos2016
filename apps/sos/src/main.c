@@ -420,7 +420,7 @@ static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge) {
     conditional_panic(!badged_cap, "Failed to allocate badged cap");
     return badged_cap;
 }
-
+uint32_t timerid[2];
 /*
  * Main entry point - called by crt.
  */
@@ -438,8 +438,8 @@ int main(void) {
 
     /* Initialise timers */
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));
-    epit_register_callback(100, timerCallback, (void*)NULL);
-    epit_register_callback(250, timerCallbackz, (void*)NULL);
+    timerid[0] = epit_register_callback(100, timerCallback, (void*)NULL);
+    timerid[1] = epit_register_callback(250, timerCallbackz, (void*)NULL);
 
     /* Start the user application */
     start_first_process(TTY_NAME, _sos_ipc_ep_cap);
@@ -455,9 +455,9 @@ int main(void) {
 
 void timerCallback(uint32_t id, void* data){
     epit_register_callback(100, timerCallback, (void*)NULL);
-    dprintf(0, "Hello World, time is %llu \n", epit_getCurrentTimestamp());
+    dprintf(0, "Good Morning Vietnam! time is %llu \n", epit_getCurrentTimestamp());
 }
 void timerCallbackz(uint32_t id, void* data){
     epit_register_callback(250, timerCallbackz, (void*)NULL);
-    dprintf(0, "Hello World2, time is %llu \n", epit_getCurrentTimestamp());
+    dprintf(0, "Hello World, time is %llu \n", epit_getCurrentTimestamp());
 }
