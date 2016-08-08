@@ -62,10 +62,12 @@ clock_irq(void) {
 void
 handle_irq_callback() {
     //timer overflow, need more time
-    if(queue.head->timestamp > epit_getCurrentTimestamp()) {
-        uint64_t delay = queue.head->timestamp - epit_getCurrentTimestamp();
+    uint64_t timestamp = epit_getCurrentTimestamp();
+    if(queue.head->timestamp > timestamp) {
+        uint64_t delay = queue.head->timestamp - timestamp;
         epit_setTime(timers[0].reg, delay, 1);
-    } else {
+    } 
+    else {
         //fire callback
         queue.head->callback(queue.head->id, queue.head->data);
 
@@ -79,13 +81,18 @@ handle_irq_callback() {
         free(temp);
 
         //if there is more timers, activate them
-        if(queue.head) {
-            uint64_t delay = epit_getCurrentTimestamp - queue.head->timestamp;
-            epit_setTimer(timers[0].reg, delay, 1);
+        callback_node_t * cur = queue.head;
+        while(cur && cur->timestamp <= timestamp){
+            cur->callback(cur->id, cur->data);
+            cur = cur->next;
+        }
+        if(cur){
+            uint64_t delay = timestamp - cur->timestamp;
+            epit_stopTimer(timers[0].reg);
+            epit_setTime(timers[0].reg, delay, 1);
             epit_startTimer(timers[0].reg);
         }
-    }
-        
+     }        
 }
 
 void
@@ -169,7 +176,7 @@ void epit_setTimerClock(EPIT *timer) {
 
 uint64_t epit_getCurrentTimestamp() {
     //Get number of ticks
-    uint64_t count = (uint64_t) 0x00000000 <<32 | (0xFFFFFFFF - timers[1].reg->REG_Counter);
+    uint64_t count = (uint64_t) (0xFFFFFFFF - timers[1].reg->REG_Counter);
 
     //Convert to ms
     count *= EPIT_CLOCK_TICK;
@@ -188,13 +195,12 @@ void epit_setTime(EPIT *timer, uint64_t milliseconds, int reset){
     }
 
     uint32_t newCount;
-    if(milliseconds > (0x00000000FFFFFFFF)) {
+    milliseconds *= EPIT_TICK_PER_MS;
+    if(milliseconds > 0xFFFFFFFF) {
        newCount = 0xFFFFFFFF;
     } else {
-        newCount = (uint32_t)(milliseconds & 0x00000000FFFFFFFF);
-        newCount *= EPIT_TICK_PER_MS;
-    }
-
+       newCount = (uint32_t)milliseconds;
+    } 
 	timer->REG_Load = newCount;
 
     if(reset){
@@ -236,7 +242,7 @@ int deallocate_timer_id(int id) {
         freelist[id] = 0;
     return -1;
 }
-
+// On Failure, returns 0. Calling function must check!
 uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void *data) {
     //create node
     callback_node_t *node = malloc(sizeof(callback_node_t));
@@ -258,10 +264,14 @@ uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void 
 
     //if the timer is already activated
     if(queue.head) {
-        //RACE CONDITION
         //the current timer is before the new timer
-        if(queue.head->timestamp <= timestamp) {
-            queue.head->next = node;
+       if(queue.head->timestamp <= timestamp) {
+           callback_node_t *cur = queue.head;
+           while(cur->next && cur->next->timestamp <= timestamp) {
+                cur = cur->next;               
+           }
+           node->next = cur->next;
+           cur->next = node;
         } else {
         //activate the new timer
             node->next = queue.head;
