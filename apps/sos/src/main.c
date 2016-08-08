@@ -152,12 +152,14 @@ void syscall_loop(seL4_CPtr ep) {
         message = seL4_Wait(ep, &badge);
         label = seL4_MessageInfo_get_label(message);
         if(badge & IRQ_EP_BADGE){
+
             /* Interrupt */
             if (badge & IRQ_BADGE_NETWORK) {
                 network_irq();
-            } else if(badge & IRQ_BADGE_CLOCK) {
-				clock_irq();
-			}
+            }
+	     else if(badge & IRQ_BADGE_CLOCK) {
+		clock_irq();
+	    }
         }else if(label == seL4_VMFault){
             /* Page fault */
             dprintf(0, "vm fault at 0x%08x, pc = 0x%08x, %s\n", seL4_GetMR(1),
@@ -437,12 +439,14 @@ int main(void) {
 
     /* Initialise timers */
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));
-    epit_register_callback(1000, &timerCallback, (void*)NULL);
+    epit_register_callback(10000, timerCallback, (void*)NULL);
     /* Start the user application */
     start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");
+    uint64_t bob = epit_getCurrentTimestamp();
+    dprintf(0, "Time is now %llu ms \n", bob);
     syscall_loop(_sos_ipc_ep_cap);
 
     /* Not reached */
@@ -450,6 +454,6 @@ int main(void) {
 }
 
 void timerCallback(uint32_t id, void* data){
-    epit_register_callback(100, &timerCallback, (void*)NULL);
+    epit_register_callback(100, timerCallback, (void*)NULL);
     dprintf(0, "Hello World");
 }

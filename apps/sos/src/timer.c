@@ -24,10 +24,9 @@
  */
 
 //Number of timer overflows for the periodic timer
-volatile uint64_t timestamp_overflows;
+uint64_t timestamp_overflows;
 
 //The irq cap
-static seL4_CPtr _irq_ep;
 
 //Our two timer registers
 timer timers[2];
@@ -43,11 +42,7 @@ callback_queue queue;
  *******************/
 void 
 clock_irq(void) {
-    /* skip if the timer is not initialised */
-    if(_irq_ep == seL4_CapNull){
-        return;
-    }
-
+    dprintf(0, "Clock IRQ Recieved");
 	/*	Handle IRQ */
     if(timers[0].reg->REG_Status) {
         handle_irq_callback();
@@ -100,12 +95,13 @@ handle_irq(timer timer) {
     int err;
     timer.reg->REG_Status = 1;
     err = seL4_IRQHandler_Ack(timer.cap);
+    dprintf("Timer Interrupt at %llu\n", epit_getCurrentTimestamp());
     assert(!err);
 }
 
 static void
 testfunc_print(int number, void* data) {
-        dprintf(0, "In callback, number: %d, timestamp is %lu\n", number, epit_getCurrentTimestamp());
+        dprintf(0, "In callback, number: %d, timestamp is %llu\n", number, epit_getCurrentTimestamp());
 }
 
 
@@ -115,7 +111,7 @@ enable_irq(int irq, seL4_CPtr aep) {
     int err;
     /* Create an IRQ handler */
     cap = cspace_irq_control_get_cap(cur_cspace, seL4_CapIRQControl, irq);
-
+    assert(cap);
     /* Assign to an end point */
     err = seL4_IRQHandler_SetEndpoint(cap, aep);
 
@@ -127,7 +123,8 @@ enable_irq(int irq, seL4_CPtr aep) {
 
 int start_timer(seL4_CPtr interrupt_ep){
 	//badged copy of the asyncEP
-	_irq_ep = interrupt_ep;
+
+     seL4_CPtr _irq_ep = interrupt_ep;
 
 	//create interrupt handling cap
     timers[0].cap = enable_irq( EPIT1_INTERRUPT, _irq_ep);
@@ -149,6 +146,8 @@ int start_timer(seL4_CPtr interrupt_ep){
     //Start timer epit1 for timestamps updates
     epit_setTimerClock(timers[1].reg);
     epit_startTimer(timers[1].reg);
+    queue.head = NULL;
+    return 0;
 }
 
 /*
@@ -170,14 +169,16 @@ void epit_init(EPIT *timer){
 }
 
 void epit_setTimerClock(EPIT *timer) {
+    timer->REG_Control &= (0xFFFFFFFF ^ (EPIT_EN_MOD));
     timer->REG_Control &= (0xFFFFFFFF ^ (EPIT_RLD));
-    timer->REG_Control &= (0xFFFFFFFF ^ (EPIT_PRESCALE_MSK));
+    timer->REG_Control |= EPIT_PRESCALE_MSK;
+    timer->REG_Status = 1;
 }
 
 uint64_t epit_getCurrentTimestamp() {
     //Get number of ticks
     epit_stopTimer(timers[1].reg);
-    uint64_t count = (uint64_t) (0xFFFFFFFF - timers[1].reg->REG_Counter);
+    uint64_t count = 0xFFFFFFFF - timers[1].reg->REG_Counter;
     epit_startTimer(timers[1].reg);
 
     //Convert to ms
@@ -248,15 +249,18 @@ int deallocate_timer_id(int id) {
 uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void *data) {
     //create node
     callback_node_t *node = malloc(sizeof(callback_node_t));
-    if(!node)
-        return 0;
+    if(!node){    
+	dprintf(0, "Failed to Acquire Memory for Timer\n");
+	    return 0;
+    } 
     node->callback = callback;
-
     int id = allocate_timer_id();
-    if(!id) {
+    if(id == -1) {
+	dprintf(0,"No Free Timer ID\n");
         free(node);
         return 0;
     }
+
     node->id = id;
 
     uint64_t timestamp = epit_getCurrentTimestamp() + delay;
@@ -282,10 +286,12 @@ uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void 
             epit_setTime(timers[0].reg, delay, 1);
             epit_startTimer(timers[0].reg);
         }
-    } else {
+    }
+    else {
         queue.head = node;
         epit_setTime(timers[0].reg, delay, 1);
-        epit_startTimer(timers[0].reg);
+        dprintf(0,"Timer set for %llu ms", delay);
+       epit_startTimer(timers[0].reg);
     }
             
     return id;
