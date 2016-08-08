@@ -13,16 +13,15 @@ TARGETS := libclock.a
 
 # Source files required to build the target
 CFILES += $(patsubst $(SOURCE_DIR)/%,%,$(wildcard ${SOURCE_DIR}/src/plat/$(PLAT)/*.c))
+CFILES += $(patsubst $(SOURCE_DIR)/%,%,$(wildcard ${SOURCE_DIR}/src/plat/$(PLAT)/uboot/*.c))
+CFILES += $(patsubst $(SOURCE_DIR)/%,%,$(wildcard ${SOURCE_DIR}/src/*.c))
 CFILES += $(patsubst $(SOURCE_DIR)/%,%,$(wildcard ${SOURCE_DIR}/src/plat/$(PLAT)/resource/*.c))
-CFILES += $(patsubst $(SOURCE_DIR)/%,%,$(wildcard $(SOURCE_DIR)/src/sys/*.c))
-CFILES := $(patsubst $(SOURCE_DIR)/%,%,$(wildcard $(SOURCE_DIR)/src/*.c)) 
 
 HDRFILES := \
     $(wildcard ${SOURCE_DIR}/include/*) \
+    $(wildcard ${SOURCE_DIR}/include/clock) \
     $(wildcard ${SOURCE_DIR}/plat_include/$(PLAT)/*) \
-    $(wildcard ${SOURCE_DIR}/arch_include/${ARCH}/*) \
-	$(wildcard $(SOURCE_DIR)/include/*) \
-	$(wildcard $(SOURCE_DIR)/*)
+    $(wildcard ${SOURCE_DIR}/arch_include/${ARCH}/*)
 
 CFLAGS := -g -O0
 include $(SEL4_COMMON)/common.mk
