@@ -15,18 +15,8 @@
 #include <sys/debug.h>
 #include <sys/panic.h>
 
-/*
- * Initialise driver. Performs implicit stop_timer() if already initialised.
- *    interrupt_ep:       A (possibly badged) async endpoint that the driver
-                          should use for deliverying interrupts to
- *
- * Returns CLOCK_R_OK iff successful.
- */
-
 //Number of timer overflows for the periodic timer
 uint64_t timestamp_overflows;
-
-//The irq cap
 
 //Our two timer registers
 timer timers[2];
@@ -42,11 +32,10 @@ callback_queue queue;
  *******************/
 void 
 clock_irq(void) {
-    dprintf(0, "Clock IRQ Recieved");
 	/*	Handle IRQ */
     if(timers[0].reg->REG_Status) {
-        handle_irq_callback();
         handle_irq(timers[0]);
+        handle_irq_callback();
     }
     if(timers[1].reg->REG_Status) {
         timestamp_overflows += 1;
@@ -61,32 +50,34 @@ handle_irq_callback() {
     if(queue.head->timestamp > timestamp) {
         uint64_t delay = queue.head->timestamp - timestamp;
         epit_setTime(timers[0].reg, delay, 1);
-    } 
-    else {
-        //fire callback
-        queue.head->callback(queue.head->id, queue.head->data);
+    } else {
 
         //temp pointer
         callback_node_t *temp = queue.head;
 
         //change queue
-        queue.head = queue.head->next;
+        /*queue.head = queue.head->next;*/
+        queue.head = NULL;
 
-        //free queue node
-        free(temp);
-
-        //if there is more timers, activate them
+        /*Activate all timers that should have been fired already*/
         callback_node_t * cur = queue.head;
         while(cur && cur->timestamp <= timestamp){
             cur->callback(cur->id, cur->data);
             cur = cur->next;
         }
         if(cur){
-            uint64_t delay = timestamp - cur->timestamp;
-            epit_stopTimer(timers[0].reg);
+            uint64_t delay = cur->timestamp - timestamp;
             epit_setTime(timers[0].reg, delay, 1);
             epit_startTimer(timers[0].reg);
+        } else {
+            epit_stopTimer(timers[0].reg);
         }
+
+        //fire callback
+        temp->callback(temp->id, temp->data);
+
+        //free queue node
+        free(temp);
      }        
 }
 
@@ -95,7 +86,6 @@ handle_irq(timer timer) {
     int err;
     timer.reg->REG_Status = 1;
     err = seL4_IRQHandler_Ack(timer.cap);
-    dprintf("Timer Interrupt at %llu\n", epit_getCurrentTimestamp());
     assert(!err);
 }
 
@@ -146,6 +136,7 @@ int start_timer(seL4_CPtr interrupt_ep){
     //Start timer epit1 for timestamps updates
     epit_setTimerClock(timers[1].reg);
     epit_startTimer(timers[1].reg);
+
     queue.head = NULL;
     return 0;
 }
@@ -256,7 +247,7 @@ uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void 
     node->callback = callback;
     int id = allocate_timer_id();
     if(id == -1) {
-	dprintf(0,"No Free Timer ID\n");
+        dprintf(0,"No Free Timer ID\n");
         free(node);
         return 0;
     }
@@ -267,6 +258,7 @@ uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void 
     node->timestamp = timestamp;
 
     node->data = data;
+    node->next = NULL;
 
     //if the timer is already activated
     if(queue.head) {
@@ -286,12 +278,11 @@ uint32_t epit_register_callback(uint64_t delay, timer_callback_t callback, void 
             epit_setTime(timers[0].reg, delay, 1);
             epit_startTimer(timers[0].reg);
         }
-    }
-    else {
+    } else {
         queue.head = node;
         epit_setTime(timers[0].reg, delay, 1);
-        dprintf(0,"Timer set for %llu ms", delay);
-       epit_startTimer(timers[0].reg);
+        dprintf(0,"");
+        epit_startTimer(timers[0].reg);
     }
             
     return id;
