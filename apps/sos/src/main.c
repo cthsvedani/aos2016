@@ -58,6 +58,7 @@
 /* The linker will link this symbol to the start address  *
  * of an archive of attached applications.                */
 extern char _cpio_archive[];
+void timerCallback(uint32_t id, void* data);
 
 const seL4_BootInfo* _boot_info;
 
@@ -436,7 +437,7 @@ int main(void) {
 
     /* Initialise timers */
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));
-
+    epit_register_callback(1000, &timerCallback, (void*)NULL);
     /* Start the user application */
     start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
@@ -448,4 +449,7 @@ int main(void) {
     return 0;
 }
 
-
+void timerCallback(uint32_t id, void* data){
+    epit_register_callback(100, &timerCallback, (void*)NULL);
+    dprintf(0, "Hello World");
+}

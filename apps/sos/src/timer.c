@@ -176,7 +176,9 @@ void epit_setTimerClock(EPIT *timer) {
 
 uint64_t epit_getCurrentTimestamp() {
     //Get number of ticks
+    epit_stopTimer(timers[1].reg);
     uint64_t count = (uint64_t) (0xFFFFFFFF - timers[1].reg->REG_Counter);
+    epit_startTimer(timers[1].reg);
 
     //Convert to ms
     count *= EPIT_CLOCK_TICK;
