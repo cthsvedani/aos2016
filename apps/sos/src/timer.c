@@ -38,7 +38,7 @@ int timer_interrupt(void) {
     }
     if(timers[1].reg->REG_Status) {
         timestamp_overflows += 1;
-        handle_irq(timers[1]);
+        handle_irq(timers[0]);
     }
     return 0;
 }
@@ -168,15 +168,28 @@ void epit_setTimerClock(EPIT *timer) {
 
 uint64_t epit_getCurrentTimestamp() {
     //Get number of ticks
-    epit_stopTimer(timers[1].reg);
+    int status[2];
+    int offset = 0;
+    status[0] = timers[1].reg->REG_Status;
+    if(status[0]){
+        offset = 1;
+    };
     uint64_t count = 0xFFFFFFFF - timers[1].reg->REG_Counter;
-    epit_startTimer(timers[1].reg);
+    status[1] = timers[1].reg->REG_Status;
+    if(status[0] != status[1]){
+	if(count > 0xF0000000){
+		offset = 1;
+	}
+	else{
+		offset = 0;
+	}	
+    }
 
     //Convert to ms
     count *= EPIT_CLOCK_TICK;
 
     //Add overflow values
-    uint64_t timestamp = timestamp_overflows * EPIT_CLOCK_OVERFLOW;
+    uint64_t timestamp = (timestamp_overflows + offset) * EPIT_CLOCK_OVERFLOW;
 
     timestamp = timestamp + count;
     return timestamp;
