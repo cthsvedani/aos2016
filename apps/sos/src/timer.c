@@ -293,10 +293,36 @@ uint32_t register_timer(uint64_t delay, timer_callback_t callback, void *data) {
 }
 
 timestamp_t time_stamp(void){
- return epit_getCurrentTimestamp();
+    return epit_getCurrentTimestamp();
 }
 
 int stop_timer(void){
 	epit_stopTimer(timers[0].reg);
 }
 
+int remove_timer(uint32_t id) {
+    callback_node_t *temp = queue.head;
+    while(temp) {
+        if(temp->id == id)
+            break;
+        temp = temp->next;
+    }
+
+    if(!temp) {
+        return -1;
+    } else {
+        //if temp is head we need to stop timer
+        if(temp == queue.head) {
+            epit_stopTimer(timers[0].reg);
+            //if there is more timers, activate them
+            queue.head = temp->next;
+
+            if(queue.head) {
+                uint64_t timestamp = epit_getCurrentTimestamp();
+                epit_setTime(timers[0].reg, queue.head->timestamp - timestamp, 1);
+                epit_startTimer(timers[0].reg);
+            }
+        }
+    }
+    return id;
+}
