@@ -65,6 +65,7 @@ handle_irq_callback() {
           queue.head = queue.head->next;
           temp2->callback(temp2->id, temp2->data);
           free(temp2);
+          deallocate_timer_id(temp2->id);
        }
 
  
@@ -77,6 +78,7 @@ handle_irq_callback() {
 
        temp->callback(temp->id, temp->data);
        free(temp); 
+       deallocate_timer_id(temp->id);
    }        
 }
 
@@ -298,6 +300,17 @@ timestamp_t time_stamp(void){
 
 int stop_timer(void){
 	epit_stopTimer(timers[0].reg);
+    epit_stopTimer(timers[1].reg);
+
+    callback_node_t *temp = queue.head;
+    while(queue.head) {
+        queue.head = temp->next;
+        free(temp);
+        deallocate_timer_id(temp->id);
+        temp = queue.head;
+    }
+    
+    return CLOCK_R_OK;
 }
 
 int remove_timer(uint32_t id) {
