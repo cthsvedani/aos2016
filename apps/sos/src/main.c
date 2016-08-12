@@ -38,6 +38,8 @@
 #include <sys/debug.h>
 #include <sys/panic.h>
 
+#include "frametable.h"
+
 /* This is the index where a clients syscall enpoint will
  * be stored in the clients cspace. */
 #define USER_EP_CAP          (1)
@@ -411,6 +413,7 @@ static void _sos_init(seL4_CPtr* ipc_ep, seL4_CPtr* async_ep){
     conditional_panic(err, "Failed to intiialise DMA memory\n");
 
     /* Initialiase other system compenents here */
+    frametable_init(low, high);
 
     _sos_ipc_init(ipc_ep, async_ep);
 }
