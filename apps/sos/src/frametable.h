@@ -22,7 +22,7 @@ int frame_free(seL4_Word v_addr);
  
 
 void freeList_init(seL4_Word count);
-uint32_t nextFreeFrame(freeNode ** fNode);
+freeNode * nextFreeFrame(void);
 void freeList_freeFrame(freeNode * fNode); 
 
 #endif

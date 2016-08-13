@@ -9,7 +9,7 @@
 
 frame* ftable;
 freeNode* freeList;
-_ftInit = 0;
+int _ftInit = 0;
 seL4_CPtr *pd;
 
 
@@ -60,14 +60,16 @@ void freeList_init(seL4_Word count) {
  * window at a fixed offset of the physical address.
  */
 seL4_Word frame_alloc(void) {
-    seL4_Word v_addr = NULL;
-    int index = nextFreeFrame();
-  
-    ftable[index].p_addr = ut_alloc(PAGE_BIT_SIZE);
-    if(ftable[index].p_addr) return NULL; //Leak!
+    seL4_Word v_addr = (seL4_Word)NULL;
+    freeNode* fNode = nextFreeFrame();
+    int index = fNode->index;
 
-    cspace_ut_retupe_addr(newFrame, seL4_ARM_SmallPageObject, PAGE_BIT_SIZE,
-		cur_cspace,&(ftable[index]->cptr));
+    ftable[index].fNode = fNode;
+    ftable[index].p_addr = ut_alloc(seL4_PageBits);
+    if(ftable[index].p_addr) return (seL4_Word)NULL; //Leak!
+
+    cspace_ut_retype_addr(ftable[index].p_addr, seL4_ARM_SmallPageObject, seL4_PageBits,
+		cur_cspace,&(ftable[index].cptr));
     
     //map_page
 
@@ -80,22 +82,28 @@ seL4_Word frame_alloc(void) {
  */
 int frame_free(seL4_Word v_addr) {
     int index;
+     if(v_addr % (2^seL4_PageBits)){ //Check Page alignment
+           return -1;
+     }
+    
     //if(valid)
-    freeList_freeFrame(freeNode * fNode);
-    cspace_delete_cap(cur_cspace, ftable[index]->cptr);
-    ut_free(ftable[index].p_addr);
-    ftable[index].cptr = NULL;
-    ftable[index].p_addr = NULL;
+    freeList_freeFrame(ftable[index].fNode);
+    cspace_delete_cap(cur_cspace, ftable[index].cptr);
+    ut_free(ftable[index].p_addr, seL4_PageBits);
+    ftable[index].cptr = (seL4_Word) NULL;
+    ftable[index].p_addr = (seL4_Word) NULL;
 
     return 0;
 }
 
 freeNode * nextFreeFrame( void ){
-    if(freeList){
-        index = freeList.index;
-        *fNode = freeList;
+    freeNode* fNode;
+    if(freeList){       
+        fNode = freeList;
         freeList = freeList->next;
+        return fNode;
     }
+    return NULL;
 }
 
 void freeList_freeFrame(freeNode * fNode){
