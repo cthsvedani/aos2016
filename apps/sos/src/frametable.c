@@ -4,12 +4,13 @@
 frame* ftable;
 freeNode* freeList;
 seL4_ARM_PageDirectory pd;
-
+_ftInit = 0;
 
 void frametable_init(seL4_Word low, seL4_Word high) { 
+    assert(!_ftInit);
     seL4_Word size = high - low;
 
-    seL4_Word count = size >> PAGE_BIT_SHIFT;
+    seL4_Word count = size >> PAGE_BIT_SIZE;
     ftable = malloc(count*sizeof(frame));
     assert(ftable);
     freeList_init(count); 
@@ -18,32 +19,68 @@ void frametable_init(seL4_Word low, seL4_Word high) {
     //set up a new page directory - page tables should be set up by map_page
 
     //malloc frame table
+    _ftInit = 1;
 
 }
 
-void freeList_init(seL4_Word count) { 
-
-
+void freeList_init(seL4_Word count) {
+    freeList = malloc(sizeof(freeNode));
+    freeList->index = 0;
+    freeList->next = NULL;
+    freeNode* head = freeList;
+    for(int i = 1; i < count; i++){
+        head->next = malloc(sizeof(freeNode));
+        head->index = i;
+        head->next = NULL;
+    }
 }
 
 /*
  * The physical memory is reserved via the ut_alloc, the memory is retyped into a frame, and the frame is mapped into the SOS
  * window at a fixed offset of the physical address.
  */
-void frame_alloc() {
-    //ut_alloc
-    
-    //cspace_ut_retupe_addr to seL4_ARM_SmallPageObject
+seL4_Word frame_alloc(void) {
+    seL4_Word v_addr = NULL;
+    int index = nextFreeFrame();
+  
+    ftable[index].p_addr = ut_alloc(PAGE_BIT_SIZE);
+    if(ftable[index].p_addr) return NULL; //Leak!
+
+    cspace_ut_retupe_addr(newFrame, seL4_ARM_SmallPageObject, PAGE_BIT_SIZE,
+		cur_cspace,&(ftable[index]->cptr));
     
     //map_page
+
+    return v_addr;
 }
 
 /*
  * The physical memory is no longer mapped in the window, the frame object is destroyed, and the physical memory ranged
  * is returned via ut_free
  */
-void frame_free() {
+int frame_free(seL4_Word v_addr) {
+    int index;
+    //if(valid)
+    freeList_freeFrame(freeNode * fNode);
+    cspace_delete_cap(cur_cspace, ftable[index]->cptr);
+    ut_free(ftable[index].p_addr);
+    ftable[index].cptr = NULL;
+    ftable[index].p_addr = NULL;
 
+    return 0;
+}
+
+freeNode * nextFreeFrame( void ){
+    if(freeList){
+        index = freeList.index;
+        *fNode = freeList;
+        freeList = freeList->next;
+    }
+}
+
+void freeList_freeFrame(freeNode * fNode){
+     fNode->next = freeList;
+     freeList = fNode;
 }
 
 //vspace is represented by a PD object
