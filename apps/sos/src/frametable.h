@@ -13,12 +13,13 @@ typedef struct frNode{
 typedef struct {
     seL4_Word p_addr;
     seL4_CPtr cptr;
+    seL4_ARM_Page page;
     freeNode * fNode;
 } frame;
 
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace);
-seL4_Word frame_alloc(void);
-int frame_free(seL4_Word v_addr);
+uint32_t frame_alloc(seL4_Word * vaddr);
+int frame_free(uint32_t index);
  
 
 void freeList_init(seL4_Word count);

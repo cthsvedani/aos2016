@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <mapping.h>
 #define verbose 5
 #include <sys/debug.h>
 #include <sys/panic.h>
@@ -59,7 +60,7 @@ void freeList_init(seL4_Word count) {
  * The physical memory is reserved via the ut_alloc, the memory is retyped into a frame, and the frame is mapped into the SOS
  * window at a fixed offset of the physical address.
  */
-seL4_Word frame_alloc(void) {
+uint32_t frame_alloc(seL4_Word * vaddr) {
     seL4_Word v_addr = (seL4_Word)NULL;
     freeNode* fNode = nextFreeFrame();
     int index = fNode->index;
@@ -70,28 +71,27 @@ seL4_Word frame_alloc(void) {
 
     cspace_ut_retype_addr(ftable[index].p_addr, seL4_ARM_SmallPageObject, seL4_PageBits,
 		cur_cspace,&(ftable[index].cptr));
-    
-    //map_page
+    *vaddr = 0xA0000000 + (index << seL4_PageBits); 
+    map_page(ftable[index].cptr, *pd, *vaddr, seL4_AllRights, seL4_ARM_PageCacheable); 
 
-    return v_addr;
+    return index;
 }
 
 /*
  * The physical memory is no longer mapped in the window, the frame object is destroyed, and the physical memory ranged
  * is returned via ut_free
  */
-int frame_free(seL4_Word v_addr) {
-    int index;
-     if(v_addr % (2^seL4_PageBits)){ //Check Page alignment
-           return -1;
-     }
-    
-    //if(valid)
+int frame_free(uint32_t index) {
+    if(ftable[index].fNode){
     freeList_freeFrame(ftable[index].fNode);
+    seL4_ARM_Page_Unmap(ftable[index].cptr);
     cspace_delete_cap(cur_cspace, ftable[index].cptr);
     ut_free(ftable[index].p_addr, seL4_PageBits);
-    ftable[index].cptr = (seL4_Word) NULL;
+    ftable[index].cptr = (seL4_CPtr) NULL;
     ftable[index].p_addr = (seL4_Word) NULL;
+    ftable[index].fNode = NULL;
+    }
+    else return -1;
 
     return 0;
 }
