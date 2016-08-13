@@ -24,7 +24,7 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
     ftable = malloc(count*sizeof(frame));
     assert(ftable);
     freeList_init(count); 
-    //seL4_Word adr = ut_alloc(sizeof(frame));
+    /*seL4_Word adr = ut_alloc(sizeof(frame));*/
     //set up a new page directory - page tables should be set up by map_page
 
     //malloc frame table
@@ -32,6 +32,7 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
 
     /* Create an PageDirectory */
     seL4_Word pd_addr;
+
     pd_addr = ut_alloc(seL4_PageDirBits);
     conditional_panic(!pd_addr, "No memory for page directory");
     int err;
@@ -51,6 +52,7 @@ void freeList_init(seL4_Word count) {
     freeNode* head = freeList;
     for(int i = 1; i < count; i++){
         head->next = malloc(sizeof(freeNode));
+        head = head->next;
         head->index = i;
         head->next = NULL;
     }
@@ -63,14 +65,16 @@ void freeList_init(seL4_Word count) {
 uint32_t frame_alloc(seL4_Word * vaddr) {
     seL4_Word v_addr = (seL4_Word)NULL;
     freeNode* fNode = nextFreeFrame();
+    assert(fNode);
     int index = fNode->index;
+    dprintf(0, "index is %d", index);
 
     ftable[index].fNode = fNode;
     ftable[index].p_addr = ut_alloc(seL4_PageBits);
     if(ftable[index].p_addr) return (seL4_Word)NULL; //Leak!
 
     cspace_ut_retype_addr(ftable[index].p_addr, seL4_ARM_SmallPageObject, seL4_PageBits,
-		cur_cspace,&(ftable[index].cptr));
+        cur_cspace,&(ftable[index].cptr));
     *vaddr = 0xA0000000 + (index << seL4_PageBits); 
     map_page(ftable[index].cptr, *pd, *vaddr, seL4_AllRights, seL4_ARM_PageCacheable); 
 
