@@ -1,25 +1,45 @@
 #include "frametable.h"
-#include "ut.h"
+#include "ut_manager/ut.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#define verbose 5
+#include <sys/debug.h>
+#include <sys/panic.h>
 
 frame* ftable;
 freeNode* freeList;
-seL4_ARM_PageDirectory pd;
 _ftInit = 0;
+seL4_CPtr *pd;
 
-void frametable_init(seL4_Word low, seL4_Word high) { 
+
+
+void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) { 
     assert(!_ftInit);
-    seL4_Word size = high - low;
 
-    seL4_Word count = size >> PAGE_BIT_SIZE;
+    seL4_Word size = high - low;
+    seL4_Word count = size >> seL4_PageBits;
+
     ftable = malloc(count*sizeof(frame));
     assert(ftable);
     freeList_init(count); 
     //seL4_Word adr = ut_alloc(sizeof(frame));
-    
     //set up a new page directory - page tables should be set up by map_page
 
     //malloc frame table
     _ftInit = 1;
+
+    /* Create an PageDirectory */
+    seL4_Word pd_addr;
+    pd_addr = ut_alloc(seL4_PageDirBits);
+    conditional_panic(!pd_addr, "No memory for page directory");
+    int err;
+    err = cspace_ut_retype_addr(pd_addr,
+                                seL4_ARM_PageDirectoryObject,
+                                seL4_PageDirBits,
+                                cur_cspace,
+                                pd);
+    conditional_panic(err, "Failed to allocate c-slot for Interrupt endpoint");
 
 }
 
