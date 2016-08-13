@@ -412,10 +412,10 @@ static void _sos_init(seL4_CPtr* ipc_ep, seL4_CPtr* async_ep){
     err = dma_init(dma_addr, DMA_SIZE_BITS);
     conditional_panic(err, "Failed to intiialise DMA memory\n");
 
+    frametable_init(low, high, cur_cspace);
     /* Initialiase other system compenents here */
-    frametable_init(low, high,cur_cspace);
-
     _sos_ipc_init(ipc_ep, async_ep);
+
 }
 
 static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge) {

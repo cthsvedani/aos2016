@@ -18,12 +18,22 @@ seL4_CPtr *pd;
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) { 
     assert(!_ftInit);
 
-    seL4_Word size = high - low;
+	seL4_Word size = high - low;
     seL4_Word count = size >> seL4_PageBits;
+	int err;
+    seL4_CPtr tmp;
+	int bootstrapFrames = (count*sizeof(frame) >> seL4_PageBits) + 1;
 
-    ftable = malloc(count*sizeof(frame));
-    assert(ftable);
+    for(int i = 0; i < bootstrapFrames; i++){
+		seL4_CPtr f = ut_alloc(seL4_PageBits);
+		err = cspace_ut_retype_addr(f, seL4_ARM_SmallPageObject, seL4_PageBits, cur_cspace, &tmp);
+		conditional_panic(err,"Failed to allocate memory for frame table!\n");
+		map_page(tmp, seL4_CapInitThreadPD, (0x20000000 + (i << seL4_PageBits)), seL4_AllRights, seL4_ARM_PageCacheable);       
+	}
+   
+    ftable = (frame*)0x20000000;
     freeList_init(count); 
+
     //seL4_Word adr = ut_alloc(sizeof(frame));
     //set up a new page directory - page tables should be set up by map_page
 
@@ -31,16 +41,6 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
     _ftInit = 1;
 
     /* Create an PageDirectory */
-    seL4_Word pd_addr;
-    pd_addr = ut_alloc(seL4_PageDirBits);
-    conditional_panic(!pd_addr, "No memory for page directory");
-    int err;
-    err = cspace_ut_retype_addr(pd_addr,
-                                seL4_ARM_PageDirectoryObject,
-                                seL4_PageDirBits,
-                                cur_cspace,
-                                pd);
-    conditional_panic(err, "Failed to allocate c-slot for Interrupt endpoint");
 
 }
 
@@ -71,7 +71,7 @@ uint32_t frame_alloc(seL4_Word * vaddr) {
 
     cspace_ut_retype_addr(ftable[index].p_addr, seL4_ARM_SmallPageObject, seL4_PageBits,
 		cur_cspace,&(ftable[index].cptr));
-    *vaddr = 0xA0000000 + (index << seL4_PageBits); 
+    *vaddr = 0x20000000 + (index << seL4_PageBits); 
     map_page(ftable[index].cptr, *pd, *vaddr, seL4_AllRights, seL4_ARM_PageCacheable); 
 
     return index;
