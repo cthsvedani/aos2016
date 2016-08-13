@@ -11,46 +11,39 @@
 frame* ftable;
 freeNode* freeList;
 int _ftInit = 0;
-seL4_CPtr *pd;
-
-
+seL4_CPtr pd;
+int bootstrapFrames;
 
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) { 
     assert(!_ftInit);
-
+	pd = seL4_CapInitThreadPD;
 	seL4_Word size = high - low;
     seL4_Word count = size >> seL4_PageBits;
 	int err;
     seL4_CPtr tmp;
-	int bootstrapFrames = (count*sizeof(frame) >> seL4_PageBits) + 1;
+	bootstrapFrames = (count*sizeof(frame) >> seL4_PageBits) + 1;
 
     for(int i = 0; i < bootstrapFrames; i++){
 		seL4_CPtr f = ut_alloc(seL4_PageBits);
 		err = cspace_ut_retype_addr(f, seL4_ARM_SmallPageObject, seL4_PageBits, cur_cspace, &tmp);
 		conditional_panic(err,"Failed to allocate memory for frame table!\n");
-		map_page(tmp, seL4_CapInitThreadPD, (0x20000000 + (i << seL4_PageBits)), seL4_AllRights, seL4_ARM_PageCacheable);       
+		map_page(tmp, pd, (0x20000000 + (i << seL4_PageBits)), seL4_AllRights, seL4_ARM_PageCacheable);       
 	}
    
     ftable = (frame*)0x20000000;
     freeList_init(count); 
 
-    //seL4_Word adr = ut_alloc(sizeof(frame));
-    //set up a new page directory - page tables should be set up by map_page
-
-    //malloc frame table
     _ftInit = 1;
-
-    /* Create an PageDirectory */
-
 }
 
 void freeList_init(seL4_Word count) {
     freeList = malloc(sizeof(freeNode));
-    freeList->index = 0;
+    freeList->index = bootstrapFrames;
     freeList->next = NULL;
     freeNode* head = freeList;
-    for(int i = 1; i < count; i++){
+    for(int i = bootstrapFrames + 1; i < count; i++){
         head->next = malloc(sizeof(freeNode));
+        head = head->next;
         head->index = i;
         head->next = NULL;
     }
@@ -61,18 +54,44 @@ void freeList_init(seL4_Word count) {
  * window at a fixed offset of the physical address.
  */
 uint32_t frame_alloc(seL4_Word * vaddr) {
-    seL4_Word v_addr = (seL4_Word)NULL;
     freeNode* fNode = nextFreeFrame();
+    if(!fNode){
+		return 0;
+	}
+
     int index = fNode->index;
 
     ftable[index].fNode = fNode;
     ftable[index].p_addr = ut_alloc(seL4_PageBits);
-    if(ftable[index].p_addr) return (seL4_Word)NULL; //Leak!
+    if(!ftable[index].p_addr){
+		freeList_freeFrame(index);
+		ftable[index].fNode = NULL;
+		return 0;
+	} 
 
-    cspace_ut_retype_addr(ftable[index].p_addr, seL4_ARM_SmallPageObject, seL4_PageBits,
+	int err;
+
+    err = cspace_ut_retype_addr(ftable[index].p_addr, seL4_ARM_SmallPageObject, seL4_PageBits,
 		cur_cspace,&(ftable[index].cptr));
+    if(err){
+		ut_free(ftable[index].p_addr, seL4_PageBits);
+		ftable[index].p_addr = NULL;
+		freeList_freeFrame(index);
+		ftable[index].fNode = NULL;
+		return 0;
+	}
+
     *vaddr = 0x20000000 + (index << seL4_PageBits); 
-    map_page(ftable[index].cptr, *pd, *vaddr, seL4_AllRights, seL4_ARM_PageCacheable); 
+    err = map_page(ftable[index].cptr, pd, *vaddr, seL4_AllRights, seL4_ARM_PageCacheable); 
+	if(err){
+		cspace_delete_cap(cur_cspace, ftable[index].cptr);
+		ftable[index].cptr = NULL;
+		ut_free(ftable[index].p_addr, seL4_PageBits);
+		ftable[index].p_addr = NULL;
+		freeList_freeFrame(index);
+		ftable[index].fNode = NULL;
+		return 0;
+	}
 
     return index;
 }
@@ -83,13 +102,13 @@ uint32_t frame_alloc(seL4_Word * vaddr) {
  */
 int frame_free(uint32_t index) {
     if(ftable[index].fNode){
-    freeList_freeFrame(ftable[index].fNode);
-    seL4_ARM_Page_Unmap(ftable[index].cptr);
-    cspace_delete_cap(cur_cspace, ftable[index].cptr);
-    ut_free(ftable[index].p_addr, seL4_PageBits);
-    ftable[index].cptr = (seL4_CPtr) NULL;
-    ftable[index].p_addr = (seL4_Word) NULL;
-    ftable[index].fNode = NULL;
+	    freeList_freeFrame(ftable[index].fNode);
+	    seL4_ARM_Page_Unmap(ftable[index].cptr);
+	    cspace_delete_cap(cur_cspace, ftable[index].cptr);
+	    ut_free(ftable[index].p_addr, seL4_PageBits);
+	    ftable[index].cptr = (seL4_CPtr) NULL;
+	    ftable[index].p_addr = (seL4_Word) NULL;
+	    ftable[index].fNode = NULL;
     }
     else return -1;
 
