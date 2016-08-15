@@ -1,9 +1,8 @@
 #ifndef _FRAMETABLE_H_
 #define _FRAMETABLE_H_
 
-//#include <types.h>
 #include <cspace/cspace.h>
-
+#define VMEM_START 0x20000000
 
 typedef struct frNode{
     uint32_t index;

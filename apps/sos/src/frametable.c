@@ -27,10 +27,10 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
 		seL4_CPtr f = ut_alloc(seL4_PageBits);
 		err = cspace_ut_retype_addr(f, seL4_ARM_SmallPageObject, seL4_PageBits, cur_cspace, &tmp);
 		conditional_panic(err,"Failed to allocate memory for frame table!\n");
-		map_page(tmp, pd, (0x20000000 + (i << seL4_PageBits)), seL4_AllRights, seL4_ARM_PageCacheable);       
+		map_page(tmp, pd, (VMEM_START + (i << seL4_PageBits)), seL4_AllRights, seL4_ARM_PageCacheable);       
 	}
    
-    ftable = (frame*)0x20000000;
+    ftable = (frame*) VMEM_START;
     freeList_init(count); 
 
     _ftInit = 1;
@@ -56,6 +56,7 @@ void freeList_init(seL4_Word count) {
 uint32_t frame_alloc(seL4_Word * vaddr) {
     freeNode* fNode = nextFreeFrame();
     if(!fNode){
+        *vaddr = 0;
 		return 0;
 	}
 
@@ -64,6 +65,7 @@ uint32_t frame_alloc(seL4_Word * vaddr) {
     ftable[index].fNode = fNode;
     ftable[index].p_addr = ut_alloc(seL4_PageBits);
     if(!ftable[index].p_addr){
+        *vaddr = 0;
 		freeList_freeFrame(index);
 		ftable[index].fNode = NULL;
 		return 0;
@@ -78,6 +80,7 @@ uint32_t frame_alloc(seL4_Word * vaddr) {
 		ftable[index].p_addr = NULL;
 		freeList_freeFrame(index);
 		ftable[index].fNode = NULL;
+        *vaddr = 0;
 		return 0;
 	}
 
@@ -90,6 +93,7 @@ uint32_t frame_alloc(seL4_Word * vaddr) {
 		ftable[index].p_addr = NULL;
 		freeList_freeFrame(index);
 		ftable[index].fNode = NULL;
+        *vaddr = 0;
 		return 0;
 	}
 

@@ -39,6 +39,7 @@
 #include <sys/panic.h>
 
 #include "frametable.h"
+#include "frametable_tests.h"
 
 /* This is the index where a clients syscall enpoint will
  * be stored in the clients cspace. */
@@ -427,7 +428,6 @@ uint32_t timerid[2];
 /*
  * Main entry point - called by crt.
  */
-inline void ftest();
 int main(void) {
 
     dprintf(0, "\nSOS Starting...\n");
@@ -448,72 +448,11 @@ int main(void) {
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");
 
-    ftest();
+    /*ftest();*/
+    ftest_cap();
 
     syscall_loop(_sos_ipc_ep_cap);
 
     /* Not reached */
     return 0;
-}
-void ftest(){
-    int page;
-	/* Allocate 10 pages and make sure you can touch them all */
-	for (int i = 0; i < 10; i++) {
-	    /* Allocate a page */
-
-	    seL4_Word ret;
-        frame_alloc(&ret);
-	    assert(ret);
-		uint32_t * vaddr = (uint32_t *) ret;
-	    /* Test you can touch the page */
-        *vaddr = 0x37;
-	    assert(*vaddr == 0x37);
-
-	    printf("Page #%lu allocated at %p\n",  i, (void *) vaddr);
-	}
-
-	/* Test that you never run out of memory if you always free frames. */
-    for (int i = 0; i < 10000; i++) {
-        //[> Allocate a page <]/
-        seL4_Word ret;
-        page = frame_alloc(&ret);
-        assert(ret);
-        uint32_t * vaddr = (uint32_t *) ret;
-
-        //[> Test you can touch the page <]
-        *vaddr = 0x37;
-        assert(*vaddr == 0x37);
-
-        //[> print every 1000 iterations <]
-        if (i % 1000 == 0) {
-            printf("Page #%d allocated at %p\n",  i, vaddr);
-        }
-
-         frame_free(page);
-    }
-
-	/* Test that you eventually run out of memory gracefully,
-	   and doesn't crash */
-    while (1) {
-          /*Allocate a page */
-        seL4_Word ret;
-        frame_alloc(&ret);
-        assert(ret);
-        uint32_t * vaddr = (uint32_t *) ret;
-        if (!vaddr) {
-          printf("Out of memory!\n");
-          break;
-        }
-        /*[>Test you can touch the page <]*/
-        *vaddr = 0x37;
-        assert(*vaddr == 0x37);
-	}
-}
-void timerCallback(uint32_t id, void* data){
-    register_timer(100, timerCallback, (void*)NULL);
-    dprintf(0, "Good Morning Vietnam! time is %llu \n", epit_getCurrentTimestamp());
-}
-void timerCallbackz(uint32_t id, void* data){
-    register_timer(250, timerCallbackz, (void*)NULL);
-    dprintf(0, "Hello World, time is %llu \n", epit_getCurrentTimestamp());
 }
