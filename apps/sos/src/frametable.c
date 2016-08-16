@@ -84,7 +84,7 @@ uint32_t frame_alloc(seL4_Word * vaddr) {
 		return 0;
 	}
 
-    *vaddr = 0x20000000 + (index << seL4_PageBits); 
+    *vaddr = VMEM_START + (index << seL4_PageBits); 
     err = map_page(ftable[index].cptr, pd, *vaddr, seL4_AllRights, seL4_ARM_PageCacheable); 
 	if(err){
 		cspace_delete_cap(cur_cspace, ftable[index].cptr);
