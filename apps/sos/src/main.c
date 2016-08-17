@@ -41,6 +41,8 @@
 #include "frametable.h"
 #include "frametable_tests.h"
 
+#include "vm/vm/h"
+
 /* This is the index where a clients syscall enpoint will
  * be stored in the clients cspace. */
 #define USER_EP_CAP          (1)
@@ -167,7 +169,8 @@ void syscall_loop(seL4_CPtr ep) {
             dprintf(0, "vm fault at 0x%08x, pc = 0x%08x, %s\n", seL4_GetMR(1),
                     seL4_GetMR(0),
                     seL4_GetMR(2) ? "Instruction Fault" : "Data fault");
-
+            //Address that caused the fault
+            vm_fault(seL4_GetMR(1));
             assert(!"Unable to handle vm faults");
         }else if(label == seL4_NoFault) {
             /* System call */
@@ -448,7 +451,7 @@ int main(void) {
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");
 
-    ftest();
+    /*ftest();*/
     /*ftest_cap();*/
 
     syscall_loop(_sos_ipc_ep_cap);
