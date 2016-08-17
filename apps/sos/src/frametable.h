@@ -13,8 +13,6 @@ typedef struct {
     //maybe not needed
     seL4_Word p_addr;
     seL4_CPtr cptr;
-    //maybe not needed
-    seL4_ARM_Page page;
     freeNode * fNode;
 } frame;
 

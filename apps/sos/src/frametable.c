@@ -36,6 +36,7 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
     _ftInit = 1;
 }
 
+//merge with frametable
 void freeList_init(seL4_Word count) {
     freeList = malloc(sizeof(freeNode));
     freeList->index = bootstrapFrames;

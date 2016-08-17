@@ -448,11 +448,12 @@ int main(void) {
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");
 
-    /*ftest();*/
-    ftest_cap();
+    ftest();
+    /*ftest_cap();*/
 
     syscall_loop(_sos_ipc_ep_cap);
 
     /* Not reached */
     return 0;
 }
+struct region* find_region(struct addrspace* as);
