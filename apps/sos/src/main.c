@@ -41,7 +41,7 @@
 #include "frametable.h"
 #include "frametable_tests.h"
 
-#include "vm/vm/h"
+#include "vm/addrspace.h"
 
 /* This is the index where a clients syscall enpoint will
  * be stored in the clients cspace. */
@@ -170,7 +170,7 @@ void syscall_loop(seL4_CPtr ep) {
                     seL4_GetMR(0),
                     seL4_GetMR(2) ? "Instruction Fault" : "Data fault");
             //Address that caused the fault
-            vm_fault(seL4_GetMR(1));
+            //vm_fault(seL4_GetMR(1));
             assert(!"Unable to handle vm faults");
         }else if(label == seL4_NoFault) {
             /* System call */
@@ -258,9 +258,11 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     /* These required for loading program sections */
     char* elf_base;
     unsigned long elf_size;
+	pageDirectory * tmp;
 
     /* Create a VSpace */
-    tty_test_process.vroot_addr = ut_alloc(seL4_PageDirBits);
+	tmp = pageTable_create(); 
+	tty_test_process.vroot_addr = ut_alloc(seL4_PageDirBits);
     conditional_panic(!tty_test_process.vroot_addr, 
                       "No memory for new Page Directory");
     err = cspace_ut_retype_addr(tty_test_process.vroot_addr,
@@ -459,4 +461,3 @@ int main(void) {
     /* Not reached */
     return 0;
 }
-struct region* find_region(struct addrspace* as);

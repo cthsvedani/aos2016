@@ -1,26 +1,41 @@
 #ifndef _ADDRSPACE_H_
 #define _ADDRSPACE_H_
 
-struct addrspace * as_create(void);
-int as_define_region(struct addrspace *as, int flags);
-void as_destroy();
+#include "sel4/arch/types.h"
 
-struct region* new_region(struct addrspace* as);
-struct region* find_region(struct addrspace* as);
-
-void free_region_list( struct region* head);
-void free_page_table(void );
-
-typedef struct addrspace {
-    region *regions;
-} addrspace;
+#define VM_PDIR_LENGTH		4096
+#define VM_PTABLE_LENGTH	2048
 
 typedef struct region_t {
     seL4_Word vbase;
     seL4_Word size;
     seL4_Word flags;
-    region_t *next;
-
+    struct region_t *next;
 } region;
+
+typedef struct sos_PageTable{
+	uint32_t frameIndex[VM_PTABLE_LENGTH];
+}pageTable;
+
+typedef struct sos_PageDirectory {
+    region *regions;
+    seL4_ARM_PageDirectory PageD;			//CPtr for seL4 Free
+	seL4_Word PD_addr;						//UT * for ut_free
+	pageTable * pTables[VM_PDIR_LENGTH];	//SOS Pagetable
+	seL4_Word pTables_pAddr[VM_PDIR_LENGTH];			//seL4 Memory location
+	seL4_ARM_PageTable pTables_CPtr[VM_PDIR_LENGTH];	//seL4 Cap Pointer
+} pageDirectory;
+
+pageDirectory * pageTable_create(void);
+
+void PD_destroy(pageDirectory * pd);
+void PT_destroy(pageTable * pt);
+
+struct region* new_region(pageDirectory pd, seL4_Word start,
+		size_t len, seL4_Word flags);
+
+struct region* find_region(pageDirectory pd, seL4_Word vAddr);
+
+void free_region_list(struct region* head);
 
 #endif
