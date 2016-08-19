@@ -26,7 +26,7 @@ typedef struct sos_PageDirectory {
 	seL4_ARM_PageTable pTables_CPtr[VM_PDIR_LENGTH];	//seL4 Cap Pointer
 } pageDirectory;
 
-pageDirectory * pageTable_create(void);
+pageDirectory* pageTable_create(void);
 
 void PD_destroy(pageDirectory * pd);
 void PT_destroy(pageTable * pt);

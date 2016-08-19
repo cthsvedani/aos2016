@@ -1,6 +1,6 @@
 #include "addrspace.h"
 
-pageDirectory * pageTable_create(void){
+pageDirectory* pageTable_create(void){
 	//Create a new Page Directory
 	pageDirectory* pd = malloc(sizeof pageDirectory);
 	pd->PD_addr = ut_alloc(seL4_PageDirBits);
