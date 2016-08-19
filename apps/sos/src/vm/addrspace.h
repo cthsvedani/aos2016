@@ -1,7 +1,8 @@
 #ifndef _ADDRSPACE_H_
 #define _ADDRSPACE_H_
 
-#include "sel4/arch/types.h"
+#include "sel4/types.h"
+#include <cspace/cspace.h>
 
 #define VM_PDIR_LENGTH		4096
 #define VM_PTABLE_LENGTH	2048
@@ -31,11 +32,11 @@ pageDirectory* pageTable_create(void);
 void PD_destroy(pageDirectory * pd);
 void PT_destroy(pageTable * pt);
 
-struct region* new_region(pageDirectory pd, seL4_Word start,
+int new_region(pageDirectory * pd, seL4_Word start,
 		size_t len, seL4_Word flags);
 
-struct region* find_region(pageDirectory pd, seL4_Word vAddr);
+region * find_region(pageDirectory * pd, seL4_Word vAddr);
 
-void free_region_list(struct region* head);
+void free_region_list(region* head);
 
 #endif
