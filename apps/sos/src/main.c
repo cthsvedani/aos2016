@@ -76,12 +76,10 @@ struct {
     seL4_Word tcb_addr;
     seL4_TCB tcb_cap;
 
-    seL4_Word vroot_addr;
-    seL4_ARM_PageDirectory vroot;
-
-    seL4_Word ipc_buffer_addr;
+	pageDirectory * pd;
     seL4_CPtr ipc_buffer_cap;
-
+	uint32_t ipc_frame;
+	
     cspace_t *croot;
 
 } tty_test_process;
@@ -247,9 +245,7 @@ static void print_bootinfo(const seL4_BootInfo* info) {
 
 void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     int err;
-
-    seL4_Word stack_addr;
-    seL4_CPtr stack_cap;
+	uint32_t stack_frame;
     seL4_CPtr user_ep_cap;
 
     /* These required for setting up the TCB */
@@ -258,33 +254,17 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     /* These required for loading program sections */
     char* elf_base;
     unsigned long elf_size;
-	pageDirectory * tmp;
 
     /* Create a VSpace */
-	tmp = pageTable_create(); 
-	tty_test_process.vroot_addr = ut_alloc(seL4_PageDirBits);
-    conditional_panic(!tty_test_process.vroot_addr, 
-                      "No memory for new Page Directory");
-    err = cspace_ut_retype_addr(tty_test_process.vroot_addr,
-                                seL4_ARM_PageDirectoryObject,
-                                seL4_PageDirBits,
-                                cur_cspace,
-                                &tty_test_process.vroot);
-    conditional_panic(err, "Failed to allocate page directory cap for client");
+	tty_test_process.pd = pageTable_create();
 
     /* Create a simple 1 level CSpace */
     tty_test_process.croot = cspace_create(1);
     assert(tty_test_process.croot != NULL);
 
     /* Create an IPC buffer */
-    tty_test_process.ipc_buffer_addr = ut_alloc(seL4_PageBits);
-    conditional_panic(!tty_test_process.ipc_buffer_addr, "No memory for ipc buffer");
-    err =  cspace_ut_retype_addr(tty_test_process.ipc_buffer_addr,
-                                 seL4_ARM_SmallPageObject,
-                                 seL4_PageBits,
-                                 cur_cspace,
-                                 &tty_test_process.ipc_buffer_cap);
-    conditional_panic(err, "Unable to allocate page for IPC buffer");
+	tty_test_process.ipc_frame = frame_alloc();
+    tty_test_process.ipc_buffer_cap = ftable[tty_test_process.ipc_frame].cptr;
 
     /* Copy the fault endpoint to the user app to enable IPC */
     user_ep_cap = cspace_mint_cap(tty_test_process.croot,
@@ -309,7 +289,7 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     /* Configure the TCB */
     err = seL4_TCB_Configure(tty_test_process.tcb_cap, user_ep_cap, TTY_PRIORITY,
                              tty_test_process.croot->root_cnode, seL4_NilData,
-                             tty_test_process.vroot, seL4_NilData, PROCESS_IPC_BUFFER,
+                             tty_test_process.pd->PageD, seL4_NilData, PROCESS_IPC_BUFFER,
                              tty_test_process.ipc_buffer_cap);
     conditional_panic(err, "Unable to configure new TCB");
 
@@ -320,28 +300,19 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     conditional_panic(!elf_base, "Unable to locate cpio header");
 
     /* load the elf image */
-    err = elf_load(tty_test_process.vroot, elf_base);
+    err = elf_load(tty_test_process.pd->PageD, elf_base);
     conditional_panic(err, "Failed to load elf image");
 
 
     /* Create a stack frame */
-    stack_addr = ut_alloc(seL4_PageBits);
-    conditional_panic(!stack_addr, "No memory for stack");
-    err =  cspace_ut_retype_addr(stack_addr,
-                                 seL4_ARM_SmallPageObject,
-                                 seL4_PageBits,
-                                 cur_cspace,
-                                 &stack_cap);
-    conditional_panic(err, "Unable to allocate page for stack");
-
-    /* Map in the stack frame for the user app */
-    err = map_page(stack_cap, tty_test_process.vroot,
+    stack_frame = frame_alloc();
+    err = sos_map_page(tty_test_process.pd, stack_frame,
                    PROCESS_STACK_TOP - (1 << seL4_PageBits),
                    seL4_AllRights, seL4_ARM_Default_VMAttributes);
     conditional_panic(err, "Unable to map stack IPC buffer for user app");
 
     /* Map in the IPC buffer for the thread */
-    err = map_page(tty_test_process.ipc_buffer_cap, tty_test_process.vroot,
+    err = sos_map_page(tty_test_process.pd, tty_test_process.ipc_frame,
                    PROCESS_IPC_BUFFER,
                    seL4_AllRights, seL4_ARM_Default_VMAttributes);
     conditional_panic(err, "Unable to map IPC buffer for user app");

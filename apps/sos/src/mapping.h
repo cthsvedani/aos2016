@@ -28,7 +28,7 @@
 int map_page(seL4_CPtr frame_cap, seL4_ARM_PageDirectory pd, seL4_Word vaddr, 
                 seL4_CapRights rights, seL4_ARM_VMAttributes attr);
 
-int sos_map_page(pageDirectory * pd, seL4_Word vAddr,
+int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vAddr,
 				seL4_CapRights rights, seL4_ARM_VMAttributes attr); 
  /**
  * Maps a device to virtual memory

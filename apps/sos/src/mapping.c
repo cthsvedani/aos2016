@@ -75,24 +75,61 @@ map_page(seL4_CPtr frame_cap, seL4_ARM_PageDirectory pd, seL4_Word vaddr,
     return err;
 }
 
-int sos_map_page(pageDirectory * pd, seL4_Word vaddr,
+static int 
+sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
+    seL4_ARM_PageTable pt_cap;
+    int err;
+	int index = (vaddr >> 20);
+    /* Allocate a PT object */
+	pd->pTables_pAddr[index] = ut_alloc(seL4_PageTableBits);
+    if(pd->pTables_pAddr[index] == 0){
+        return !0;
+    }
+	
+    /* Create the frame cap */
+    err =  cspace_ut_retype_addr(pd->pTables_pAddr[index], 
+                                 seL4_ARM_PageTableObject,
+                                 seL4_PageTableBits,
+                                 cur_cspace,
+                                 &(pd->pTables_CPtr[index]));
+    if(err){
+        return !0;
+    }
+    /* Tell seL4 to map the PT in for us */
+    err = seL4_ARM_PageTable_Map(pd->pTables_CPtr[index],
+                                 pd->PageD, 
+                                 vaddr, 
+                                 seL4_ARM_Default_VMAttributes);
+	if(!err){
+		pd->pTables[index] = malloc(sizeof(pageTable));
+	}
+    return err;
+}
+
+int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 				seL4_CapRights rights, seL4_ARM_VMAttributes attr){
-    int err, index;
+    int err;
 
-	index = frame_alloc();	
-
-	assert(index);
+	assert(frame);
 		
     /* Attempt the mapping */
-    err = seL4_ARM_Page_Map(ftable[index].cptr, pd->PageD, vaddr, rights, attr);
+    err = seL4_ARM_Page_Map(ftable[frame].cptr, pd->PageD, vaddr, rights, attr);
     if(err == seL4_FailedLookup){
         /* Assume the error was because we have no page table */
-        err = _map_page_table(pd->PageD, vaddr);
+        err = sos_map_page_table(pd, vaddr);
         if(!err){
             /* Try the mapping again */
-            err = seL4_ARM_Page_Map(ftable[index].cptr, pd->PageD, vaddr, rights, attr);
+            err = seL4_ARM_Page_Map(ftable[frame].cptr, pd->PageD, vaddr, rights, attr);
         }
     }
+	if(err == seL4_NoError){
+		int dindex, tindex;
+		dindex = vaddr >> 20;
+		tindex = vaddr << 12;
+		tindex = tindex >> 20;
+		pd->pTables[dindex]->frameIndex[tindex] = frame;
+	}
+
 	return err;
 }
 
