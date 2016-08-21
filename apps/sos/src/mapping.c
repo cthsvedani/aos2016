@@ -110,7 +110,7 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 				seL4_CapRights rights, seL4_ARM_VMAttributes attr){
     int err;
 
-	assert(frame);
+assert(frame);
 		
     /* Attempt the mapping */
     err = seL4_ARM_Page_Map(ftable[frame].cptr, pd->PageD, vaddr, rights, attr);

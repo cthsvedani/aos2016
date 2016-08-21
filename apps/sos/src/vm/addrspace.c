@@ -2,6 +2,7 @@
 
 #include "ut_manager/ut.h"
 #include "frametable.h"
+#include "mapping.h"
 
 #define verbose 5
 #include "sys/debug.h"
@@ -24,15 +25,22 @@ pageDirectory* pageTable_create(void){
 	return pd;
 }
 
-int vm_fault(seL4_Word addr) {
-    //check valid faulttype
-    
-    return -1;
+int vm_fault(pageDirectory * pd, seL4_Word addr) {
+	region * reg = find_region(pd, addr); 
+	if(reg == NULL){
+		assert(0);
+	}	
+	else{
+		int frame = frame_alloc();
+		sos_map_page(pd, frame, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes); 
+	}
+
+    return 0;
 }
 
 seL4_Word get_translation(seL4_Word addr, seL4_Word faulttype, pageDirectory *pd) {
-    uint_32t pd_offset = addr >> 20; //top 12 bits
-    uint_32t pt_offset = addr << 10;
+    uint32_t pd_offset = addr >> 20; //top 12 bits
+    uint32_t pt_offset = addr << 10;
     pt_offset = pt_offset >> 22; //next 10 bits
 
     if(!pd->pTables[pd_offset]) { //missing level 1 entry 
@@ -59,7 +67,7 @@ int new_region(pageDirectory * pd, seL4_Word start,
 	if(!reg){
 		return -1;
 	}
-
+	dprintf(0,"Adding New Region at %x , for %d bytes\n", start, len);
 	reg->vbase = start;
 	reg->size = len;
 	reg->flags = flags;
@@ -109,7 +117,7 @@ region * find_region(pageDirectory *  pd, seL4_Word vAddr){
 				}
 			}
 			else{
-				if(vAddr <= head->vbase && vAddr > (head->vbase + head->size)){
+				if(vAddr <= head->vbase && vAddr > (head->vbase - head->size)){
 					return head;
 				}
 			}

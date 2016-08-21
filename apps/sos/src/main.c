@@ -163,13 +163,16 @@ void syscall_loop(seL4_CPtr ep) {
                 timer_interrupt();
             }
         }else if(label == seL4_VMFault){
-            /* Page fault */
-            dprintf(0, "vm fault at 0x%08x, pc = 0x%08x, %s\n", seL4_GetMR(1),
-                    seL4_GetMR(0),
-                    seL4_GetMR(2) ? "Instruction Fault" : "Data fault");
-            //Address that caused the fault
-            vm_fault(seL4_GetMR(1));
-            assert(!"Unable to handle vm faults");
+			if (badge & TTY_EP_BADGE){
+				seL4_CPtr reply_cap;
+				reply_cap = cspace_save_reply_cap(cur_cspace);
+				assert(reply_cap != CSPACE_NULL);
+				vm_fault(tty_test_process.pd, seL4_GetMR(1));
+				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+				seL4_SetMR(0,0);
+				seL4_Send(reply_cap,reply);
+			}
+
         }else if(label == seL4_NoFault) {
             /* System call */
             handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1);
@@ -247,8 +250,7 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     int err;
 	uint32_t stack_frame;
     seL4_CPtr user_ep_cap;
-
-    /* These required for setting up the TCB */
+    /* These required r setting up the TCB */
     seL4_UserContext context;
 
     /* These required for loading program sections */
@@ -299,17 +301,26 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     elf_base = cpio_get_file(_cpio_archive, app_name, &elf_size);
     conditional_panic(!elf_base, "Unable to locate cpio header");
 
+	seL4_Word heap_start;
+
     /* load the elf image */
-    err = elf_load(tty_test_process.pd->PageD, elf_base);
+    err = elf_load(tty_test_process.pd, elf_base, &heap_start);
     conditional_panic(err, "Failed to load elf image");
 
+	heap_start = heap_start + HEAP_OFFSET;
+
+	new_region(tty_test_process.pd, heap_start, PROCESS_BREAK - heap_start, seL4_ARM_Default_VMAttributes); 	
 
     /* Create a stack frame */
     stack_frame = frame_alloc();
+	
+	new_region(tty_test_process.pd, PROCESS_STACK_TOP, PROCESS_STACK_TOP - PROCESS_BREAK,
+			seL4_ARM_Default_VMAttributes | REGION_STACK);
     err = sos_map_page(tty_test_process.pd, stack_frame,
                    PROCESS_STACK_TOP - (1 << seL4_PageBits),
                    seL4_AllRights, seL4_ARM_Default_VMAttributes);
     conditional_panic(err, "Unable to map stack IPC buffer for user app");
+	
 
     /* Map in the IPC buffer for the thread */
     err = sos_map_page(tty_test_process.pd, tty_test_process.ipc_frame,

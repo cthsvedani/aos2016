@@ -12,7 +12,8 @@
 #define _LIBOS_ELF_H_
 
 #include <sel4/sel4.h>
+#include "vm/addrspace.h"
 
-int elf_load(seL4_ARM_PageDirectory dest_pd, char* elf_file);
+int elf_load(pageDirectory * dest_pd, char* elf_file, seL4_Word * static_top);
 
 #endif /* _LIBOS_ELF_H_ */

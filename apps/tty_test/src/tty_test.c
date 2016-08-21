@@ -40,6 +40,8 @@ thread_block(void){
 
 int main(void){
     /* initialise communication */
+	int* npn = 0x8FFFE000;
+	*npn = 3442;
     ttyout_init();
 
     do {
