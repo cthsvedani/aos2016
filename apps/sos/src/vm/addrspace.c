@@ -24,6 +24,32 @@ pageDirectory* pageTable_create(void){
 	return pd;
 }
 
+int vm_fault(seL4_Word addr) {
+    //check valid faulttype
+    
+    return -1;
+}
+
+seL4_Word get_translation(seL4_Word addr, seL4_Word faulttype, pageDirectory *pd) {
+    uint_32t pd_offset = addr >> 20; //top 12 bits
+    uint_32t pt_offset = addr << 10;
+    pt_offset = pt_offset >> 22; //next 10 bits
+
+    if(!pd->pTables[pd_offset]) { //missing level 1 entry 
+        //check flags
+        //create lvl 1 entry
+        //return new paddr
+    } else if(!pd->pTables[pd_offset]->frameIndex[pt_offset]) { //missing level 2 entry
+        //check flags
+        //create lvl 2 entry
+        //return new paddr
+    }
+    return pd->pTables[pd_offset]->frameIndex[pt_offset];
+}
+
+int PT_ckflags(seL4_Word faulttype, seL4_Word addr, pageDirectory *pd) {
+}
+
 int new_region(pageDirectory * pd, seL4_Word start,
 		size_t len, seL4_Word flags){
 // A define a new region, that we can compare against when we try

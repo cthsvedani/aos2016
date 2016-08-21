@@ -168,7 +168,7 @@ void syscall_loop(seL4_CPtr ep) {
                     seL4_GetMR(0),
                     seL4_GetMR(2) ? "Instruction Fault" : "Data fault");
             //Address that caused the fault
-            //vm_fault(seL4_GetMR(1));
+            vm_fault(seL4_GetMR(1));
             assert(!"Unable to handle vm faults");
         }else if(label == seL4_NoFault) {
             /* System call */

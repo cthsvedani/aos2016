@@ -3,6 +3,10 @@
 
 #include "sel4/types.h"
 #include <cspace/cspace.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
 
 #define VM_PDIR_LENGTH		4096
 #define VM_PTABLE_LENGTH	2048
@@ -10,6 +14,10 @@
 #define REGION_STACK 0x1
 #define REGION_READONLY 0x2
 #define REGION_READWRITE 0x4
+
+#define VM_FAULT_READ   0x1
+#define VM_FAULT_WRITE  0x2
+#define VM_FAULT_READONLY   0x4
 
 typedef struct region_t {
     seL4_Word vbase;
@@ -42,5 +50,9 @@ int new_region(pageDirectory * pd, seL4_Word start,
 region * find_region(pageDirectory * pd, seL4_Word vAddr);
 
 void free_region_list(region* head);
+
+int vm_fault(seL4_Word addr);
+seL4_Word get_translation(seL4_Word addr, seL4_Word faulttype, pageDirectory *pd);
+int PT_ckflags(seL4_Word faulttype, seL4_Word addr, pageDirectory *pd);
 
 #endif
