@@ -9,6 +9,7 @@
  */
 
 #include "mapping.h"
+#include "frametable.h"
 
 #include <ut_manager/ut.h>
 #include "vmem_layout.h"
@@ -16,6 +17,7 @@
 #define verbose 0
 #include <sys/panic.h>
 #include <sys/debug.h>
+#include <assert.h>
 #include <cspace/cspace.h>
 
 extern const seL4_BootInfo* _boot_info;
@@ -71,6 +73,27 @@ map_page(seL4_CPtr frame_cap, seL4_ARM_PageDirectory pd, seL4_Word vaddr,
     }
 
     return err;
+}
+
+int sos_map_page(pageDirectory * pd, seL4_Word vaddr,
+				seL4_CapRights rights, seL4_ARM_VMAttributes attr){
+    int err, index;
+
+	index = frame_alloc();	
+
+	assert(index);
+		
+    /* Attempt the mapping */
+    err = seL4_ARM_Page_Map(ftable[index].cptr, pd->PageD, vaddr, rights, attr);
+    if(err == seL4_FailedLookup){
+        /* Assume the error was because we have no page table */
+        err = _map_page_table(pd->PageD, vaddr);
+        if(!err){
+            /* Try the mapping again */
+            err = seL4_ARM_Page_Map(ftable[index].cptr, pd->PageD, vaddr, rights, attr);
+        }
+    }
+	return err;
 }
 
 void* 

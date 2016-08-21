@@ -7,6 +7,10 @@
 #define VM_PDIR_LENGTH		4096
 #define VM_PTABLE_LENGTH	2048
 
+#define REGION_STACK 0x1
+#define REGION_READONLY 0x2
+#define REGION_READWRITE 0x4
+
 typedef struct region_t {
     seL4_Word vbase;
     seL4_Word size;

@@ -7,6 +7,7 @@
 #include "sys/debug.h"
 #include "sys/panic.h"
 
+
 pageDirectory* pageTable_create(void){
 	//Create a new Page Directory
 	pageDirectory* pd = malloc(sizeof(pageDirectory));
@@ -73,8 +74,23 @@ void PT_destroy(pageTable * pt){
 }
 
 region * find_region(pageDirectory *  pd, seL4_Word vAddr){
-
-return NULL;
+	if(pd){
+		region * head = pd->regions;
+		while(head){
+			if((head->flags & REGION_STACK) == 0){// Regions grow up, Unless they are stacks.		
+				if((vAddr >= head->vbase) && vAddr < (head->vbase + head->size)){
+					return head;
+				}
+			}
+			else{
+				if(vAddr <= head->vbase && vAddr > (head->vbase + head->size)){
+					return head;
+				}
+			}
+			head = head->next;
+		}
+	}
+	return NULL; //Either no regions are defined, or we couldn't find one that fits. So return NULL
 }
 
 void free_region_list(region * head){

@@ -8,7 +8,8 @@
 #include <sys/debug.h>
 #include <sys/panic.h>
 
-frame* ftable;
+extern frame* ftable;
+
 freeNode* freeList;
 int _ftInit = 0;
 seL4_CPtr pd;
@@ -54,10 +55,9 @@ void freeList_init(seL4_Word count) {
  * The physical memory is reserved via the ut_alloc, the memory is retyped into a frame, and the frame is mapped into the SOS
  * window at a fixed offset of the physical address.
  */
-uint32_t frame_alloc(seL4_Word * vaddr) {
+uint32_t frame_alloc(void) {
     freeNode* fNode = nextFreeFrame();
     if(!fNode){
-        *vaddr = 0;
 		return 0;
 	}
 
@@ -66,8 +66,7 @@ uint32_t frame_alloc(seL4_Word * vaddr) {
     ftable[index].fNode = fNode;
     ftable[index].p_addr = ut_alloc(seL4_PageBits);
     if(!ftable[index].p_addr){
-        *vaddr = 0;
-		freeList_freeFrame(index);
+		freeList_freeFrame(ftable[index].fNode);
 		ftable[index].fNode = NULL;
 		return 0;
 	} 
@@ -78,26 +77,11 @@ uint32_t frame_alloc(seL4_Word * vaddr) {
 		cur_cspace,&(ftable[index].cptr));
     if(err){
 		ut_free(ftable[index].p_addr, seL4_PageBits);
-		ftable[index].p_addr = NULL;
-		freeList_freeFrame(index);
+		ftable[index].p_addr = 0;
+		freeList_freeFrame(ftable[index].fNode);
 		ftable[index].fNode = NULL;
-        *vaddr = 0;
 		return 0;
 	}
-
-    *vaddr = VMEM_START + (index << seL4_PageBits); 
-    err = map_page(ftable[index].cptr, pd, *vaddr, seL4_AllRights, seL4_ARM_PageCacheable); 
-	if(err){
-		cspace_delete_cap(cur_cspace, ftable[index].cptr);
-		ftable[index].cptr = NULL;
-		ut_free(ftable[index].p_addr, seL4_PageBits);
-		ftable[index].p_addr = NULL;
-		freeList_freeFrame(index);
-		ftable[index].fNode = NULL;
-        *vaddr = 0;
-		return 0;
-	}
-
     return index;
 }
 

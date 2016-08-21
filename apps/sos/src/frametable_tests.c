@@ -1,3 +1,5 @@
+#ifdef LKSJDKJGBSFJKD
+
 #include <cspace/cspace.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,9 +11,10 @@
 #include <sys/debug.h>
 #include <sys/panic.h>
 
+
 void ftest(){
     int page;
-	/* Allocate 10 pages and make sure you can touch them all */
+	// locate 10 pages and make sure you can touch them all 
 	for (int i = 0; i < 10; i++) {
 	    /* Allocate a page */
 
@@ -93,3 +96,5 @@ void ftest_cap() {
     }
 
 }
+
+#endif

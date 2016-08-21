@@ -16,8 +16,10 @@ typedef struct {
     freeNode * fNode;
 } frame;
 
+frame* ftable;
+
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace);
-uint32_t frame_alloc(seL4_Word * vaddr);
+uint32_t frame_alloc(void);
 int frame_free(uint32_t index);
  
 
