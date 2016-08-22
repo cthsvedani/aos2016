@@ -14,7 +14,6 @@ pageDirectory* pageTable_create(void){
 	pageDirectory* pd = malloc(sizeof(pageDirectory));
 	conditional_panic(pd == NULL, "Couldn't allocate memory for the Page Directory!");
 	
-	dprintf(0,"Mystery byte is =  %p\n", pd->pTables[355]);
 	pd->PD_addr = ut_alloc(seL4_PageDirBits);
 	int err = cspace_ut_retype_addr(pd->PD_addr, seL4_ARM_PageDirectoryObject,
 		seL4_PageDirBits, cur_cspace, &(pd->PageD));

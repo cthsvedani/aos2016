@@ -103,8 +103,8 @@ int main(void){
     /* initialise communication */
     ttyout_init();
 
-	malloc_hammer();
-	
+	pt_test();	
+
     do {
         printf("task:\tHello world, I'm\ttty_test!\n");
         thread_block();

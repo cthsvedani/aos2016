@@ -14,14 +14,13 @@
 #include <ut_manager/ut.h>
 #include "vmem_layout.h"
 
-#define verbose 2
+#define verbose 0
 #include <sys/panic.h>
 #include <sys/debug.h>
 #include <assert.h>
 #include <cspace/cspace.h>
 
 extern const seL4_BootInfo* _boot_info;
-
 
 /**
  * Maps a page table into the root servers page directory
@@ -127,22 +126,16 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 	assert(tindex < 256);
 
 	assert(frame);
+
 	vaddr = vaddr >> seL4_PageBits; //Page Align the vaddress.
 	vaddr = vaddr << seL4_PageBits;	
 	
-	if(dindex == 256 && tindex == 0){
-		dprintf(0,"pd->pTables[355] = %p at %p\n", pd->pTables[355], &pd->pTables[355]);
-	}
-
-
 	if(pd->pTables[dindex] == NULL){
         err = sos_map_page_table(pd, vaddr);
 		if(err){
 			return err;
 		}
 	}
-	if(tindex == 255)
-	dprintf(1,"Mapping page at dIndex, tIndex: %u, %u\n",dindex, tindex);
     err = seL4_ARM_Page_Map(ftable[frame].cptr, pd->PageD, vaddr, rights, attr);
 
 
