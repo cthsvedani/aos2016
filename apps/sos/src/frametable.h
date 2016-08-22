@@ -4,16 +4,11 @@
 #include <cspace/cspace.h>
 #define VMEM_START 0x20000000
 
-typedef struct frNode{
+typedef struct frameNode{
     uint32_t index;
-    struct frNode * next;
-} freeNode;
-
-typedef struct {
-    //maybe not needed
     seL4_Word p_addr;
     seL4_CPtr cptr;
-    freeNode * fNode;
+    struct frameNode * next;
 } frame;
 
 frame* ftable;
@@ -24,7 +19,7 @@ int frame_free(uint32_t index);
  
 
 void freeList_init(seL4_Word count);
-freeNode * nextFreeFrame(void);
-void freeList_freeFrame(freeNode * fNode); 
+frame * nextFreeFrame(void);
+void freeList_freeFrame(frame * fNode); 
 
 #endif

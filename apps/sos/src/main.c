@@ -174,6 +174,7 @@ void syscall_loop(seL4_CPtr ep) {
 					seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
 					seL4_SetMR(0,0);
 					seL4_Send(reply_cap,reply);
+                    cspace_free_slot(cur_cspace, reply_cap);
 				}
 			}
 

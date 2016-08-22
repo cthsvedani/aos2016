@@ -42,8 +42,8 @@ int malloc_hammer(){
 	int* bob;
 	int i = 0;
 	while(1){
-		bob = malloc(1000*sizeof(int));
-		if(!(i%100)){
+		bob = malloc(1024*sizeof(int));
+		if((!(i%10)) || bob == 0x101e8010){
 			printf("At i = %d, Bob = %x\n", i, bob);
 		}
 		if(!bob){

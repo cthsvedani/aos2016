@@ -10,7 +10,7 @@
 
 extern frame* ftable;
 
-freeNode* freeList;
+frame * freeList;
 int _ftInit = 0;
 seL4_CPtr pd;
 int bootstrapFrames;
@@ -30,33 +30,33 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
 		conditional_panic(err,"Failed to allocate memory for frame table!\n");
 		map_page(tmp, pd, (VMEM_START + (i << seL4_PageBits)), seL4_AllRights, seL4_ARM_PageCacheable);       
 	}
+
+    dprintf(0,"Frametable Initialised with %d frames.\n", count);
    
     ftable = (frame*) VMEM_START;
-    freeList_init(count); 
+
+    freeList = &ftable[bootstrapFrames + 1];
+
+    freeList_init(count);
 
     _ftInit = 1;
 }
 
-//merge with frametable
-void freeList_init(seL4_Word count) {
-    freeList = malloc(sizeof(freeNode));
-    freeList->index = bootstrapFrames;
-    freeList->next = NULL;
-    freeNode* head = freeList;
-    for(int i = bootstrapFrames + 1; i < count; i++){
-        head->next = malloc(sizeof(freeNode));
-        head = head->next;
-        head->index = i;
-        head->next = NULL;
-    }
-}
 
+void freeList_init(seL4_Word count){
+    for(int i = bootstrapFrames + 1; i < count-1; i++){
+        ftable[i].index = i;
+        ftable[i].next = &ftable[i + 1];
+    }
+
+    
+}
 /*
  * The physical memory is reserved via the ut_alloc, the memory is retyped into a frame, and the frame is mapped into the SOS
  * window at a fixed offset of the physical address.
  */
 uint32_t frame_alloc(void) {
-    freeNode* fNode = nextFreeFrame();
+    frame* fNode = nextFreeFrame();
     if(!fNode){
 		dprintf(0,"Next Frame Not Found\n");
 		return 0;
@@ -64,25 +64,27 @@ uint32_t frame_alloc(void) {
 
     int index = fNode->index;
 
-    ftable[index].fNode = fNode;
+    ftable[index].next = NULL;
     ftable[index].p_addr = ut_alloc(seL4_PageBits);
     if(!ftable[index].p_addr){
 		dprintf(0,"Ut alloc failed\n");
-		freeList_freeFrame(ftable[index].fNode);
-		ftable[index].fNode = NULL;
+		freeList_freeFrame(fNode);	
 		return 0;
 	} 
 
 	int err;
+    
+    int * merror = malloc(100000);
+    assert(merror);
+    free(merror);
 
     err = cspace_ut_retype_addr(ftable[index].p_addr, seL4_ARM_SmallPageObject, seL4_PageBits,
 		cur_cspace,&(ftable[index].cptr));
     if(err){
-		dprintf(0,"retype Failed\n");
+		dprintf(0,"Retype Failed at index %d\n With error code %d", index, err);
 		ut_free(ftable[index].p_addr, seL4_PageBits);
 		ftable[index].p_addr = 0;
-		freeList_freeFrame(ftable[index].fNode);
-		ftable[index].fNode = NULL;
+		freeList_freeFrame(fNode);
 		return 0;
 	}
     return index;
@@ -93,22 +95,21 @@ uint32_t frame_alloc(void) {
  * is returned via ut_free
  */
 int frame_free(uint32_t index) {
-    if(ftable[index].fNode){
-	    freeList_freeFrame(ftable[index].fNode);
+    if(ftable[index].next == NULL){
+	    freeList_freeFrame(&ftable[index]);
 	    seL4_ARM_Page_Unmap(ftable[index].cptr);
 	    cspace_delete_cap(cur_cspace, ftable[index].cptr);
 	    ut_free(ftable[index].p_addr, seL4_PageBits);
 	    ftable[index].cptr = (seL4_CPtr) NULL;
 	    ftable[index].p_addr = (seL4_Word) NULL;
-	    ftable[index].fNode = NULL;
     }
     else return -1;
 
     return 0;
 }
 
-freeNode * nextFreeFrame( void ){
-    freeNode* fNode;
+frame * nextFreeFrame( void ){
+    frame* fNode;
     if(freeList){       
         fNode = freeList;
         freeList = freeList->next;
@@ -117,7 +118,7 @@ freeNode * nextFreeFrame( void ){
     return NULL;
 }
 
-void freeList_freeFrame(freeNode * fNode){
+void freeList_freeFrame(frame * fNode){
      fNode->next = freeList;
      freeList = fNode;
 }
