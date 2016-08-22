@@ -14,6 +14,10 @@
 #include <sel4/sel4.h>
 #include <vm/addrspace.h>
 
+#define VADDR_TO_PDINDEX(x)	x >> 20
+#define VADDR_TO_PTINDEX(x) (x << 12) >> 24
+#define VADDR_TO_PDALIGN(x) (x >> 20) << 20
+
  /**
  * Maps a page into a page table. 
  * A 2nd level table will be created if required

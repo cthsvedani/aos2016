@@ -77,10 +77,9 @@ map_page(seL4_CPtr frame_cap, seL4_ARM_PageDirectory pd, seL4_Word vaddr,
 static int 
 sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
     int err;
-	int index = (vaddr >> 20);
+	int index = VADDR_TO_PDINDEX(vaddr);
 
-	vaddr = vaddr >> 20;
-	vaddr = vaddr << 20;
+	vaddr = VADDR_TO_PDALIGN(vaddr); 
 
 	dprintf(1,"Attempting to map Page Table %p\n", vaddr);
 
@@ -98,7 +97,7 @@ sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
                                  &(pd->pTables_CPtr[index]));
     if(err){
 		ut_free(pd->pTables_pAddr[index], seL4_PageTableBits);
-		pd->pTables_pAddr[index] = NULL;
+		pd->pTables_pAddr[index] = 0;
         return err;
     }
     /* Tell seL4 to map the PT in for us */
@@ -117,10 +116,9 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 				seL4_CapRights rights, seL4_ARM_VMAttributes attr){
     int err;
 	uint32_t dindex, tindex;
-	dindex = vaddr >> 20; //Grab the top 12 bits.
+	dindex = VADDR_TO_PDINDEX(vaddr); //Grab the top 12 bits.
 
-	tindex = vaddr << 12; //Grab the next 8 bits.
-	tindex = tindex >> 24;
+	tindex = VADDR_TO_PTINDEX(vaddr); //Grab the next 8 bits.
 
 	assert(dindex < 4096);
 	assert(tindex < 256);
