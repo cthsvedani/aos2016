@@ -14,7 +14,7 @@
 #include <ut_manager/ut.h>
 #include "vmem_layout.h"
 
-#define verbose 0
+#define verbose 2
 #include <sys/panic.h>
 #include <sys/debug.h>
 #include <assert.h>
@@ -77,13 +77,18 @@ map_page(seL4_CPtr frame_cap, seL4_ARM_PageDirectory pd, seL4_Word vaddr,
 
 static int 
 sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
-    seL4_ARM_PageTable pt_cap;
     int err;
 	int index = (vaddr >> 20);
+
+	vaddr = vaddr >> 20;
+	vaddr = vaddr << 20;
+
+	dprintf(1,"Attempting to map Page Table %p\n", vaddr);
+
     /* Allocate a PT object */
 	pd->pTables_pAddr[index] = ut_alloc(seL4_PageTableBits);
     if(pd->pTables_pAddr[index] == 0){
-        return !0;
+        return err;
     }
 	
     /* Create the frame cap */
@@ -93,7 +98,9 @@ sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
                                  cur_cspace,
                                  &(pd->pTables_CPtr[index]));
     if(err){
-        return !0;
+		ut_free(pd->pTables_pAddr[index], seL4_PageTableBits);
+		pd->pTables_pAddr[index] = NULL;
+        return err;
     }
     /* Tell seL4 to map the PT in for us */
     err = seL4_ARM_PageTable_Map(pd->pTables_CPtr[index],
@@ -101,6 +108,7 @@ sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
                                  vaddr, 
                                  seL4_ARM_Default_VMAttributes);
 	if(!err){
+		assert(index < 4096);
 		pd->pTables[index] = malloc(sizeof(pageTable));
 	}
     return err;
@@ -109,25 +117,37 @@ sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
 int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 				seL4_CapRights rights, seL4_ARM_VMAttributes attr){
     int err;
+	uint32_t dindex, tindex;
+	dindex = vaddr >> 20; //Grab the top 12 bits.
+
+	tindex = vaddr << 12; //Grab the next 8 bits.
+	tindex = tindex >> 24;
+
+	assert(dindex < 4096);
+	assert(tindex < 256);
 
 	assert(frame);
-	vaddr = vaddr >> seL4_PageBits;
+	vaddr = vaddr >> seL4_PageBits; //Page Align the vaddress.
 	vaddr = vaddr << seL4_PageBits;	
-    /* Attempt the mapping */
-    err = seL4_ARM_Page_Map(ftable[frame].cptr, pd->PageD, vaddr, rights, attr);
-    if(err == seL4_FailedLookup){
-        /* Assume the error was because we have no page table */
+	
+	if(dindex == 256 && tindex == 0){
+		dprintf(0,"pd->pTables[355] = %p at %p\n", pd->pTables[355], &pd->pTables[355]);
+	}
+
+
+	if(pd->pTables[dindex] == NULL){
         err = sos_map_page_table(pd, vaddr);
-        if(!err){
-            /* Try the mapping again */
-            err = seL4_ARM_Page_Map(ftable[frame].cptr, pd->PageD, vaddr, rights, attr);
-        }
-    }
+		if(err){
+			return err;
+		}
+	}
+	if(tindex == 255)
+	dprintf(1,"Mapping page at dIndex, tIndex: %u, %u\n",dindex, tindex);
+    err = seL4_ARM_Page_Map(ftable[frame].cptr, pd->PageD, vaddr, rights, attr);
+
+
 	if(err == seL4_NoError){
-		int dindex, tindex;
-		dindex = vaddr >> 20;
-		tindex = vaddr << 12;
-		tindex = tindex >> 20;
+		assert(pd->pTables[dindex] != NULL);
 		pd->pTables[dindex]->frameIndex[tindex] = frame;
 	}
 

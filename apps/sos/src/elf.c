@@ -107,7 +107,7 @@ static int load_segment_into_vspace(pageDirectory * dest_as,
 
         /* Copy the frame cap as we need to map it into 2 address spaces */
         sos_cap = cspace_copy_cap(cur_cspace, cur_cspace, ftable[frame].cptr, seL4_AllRights);
-        conditional_panic(sos_cap == 0, "Failed to copy frame cap");
+	    conditional_panic(sos_cap == 0, "Failed to copy frame cap");
 
         /* Map the frame into tty_test address spaces */
         err = sos_map_page(dest_as, frame, vpage, permissions, 

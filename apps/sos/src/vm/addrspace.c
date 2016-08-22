@@ -12,9 +12,14 @@
 pageDirectory* pageTable_create(void){
 	//Create a new Page Directory
 	pageDirectory* pd = malloc(sizeof(pageDirectory));
+	conditional_panic(pd == NULL, "Couldn't allocate memory for the Page Directory!");
+	
+	dprintf(0,"Mystery byte is =  %p\n", pd->pTables[355]);
 	pd->PD_addr = ut_alloc(seL4_PageDirBits);
 	int err = cspace_ut_retype_addr(pd->PD_addr, seL4_ARM_PageDirectoryObject,
 		seL4_PageDirBits, cur_cspace, &(pd->PageD));
+	
+	memset(pd->pTables, 0, VM_PDIR_LENGTH*sizeof(seL4_Word)); //seL4 zeros memory except when it doesn't
 
 	if(err){
 		dprintf(0,"Could not retype memory in pageTable_create!\n");
@@ -39,6 +44,7 @@ int vm_fault(pageDirectory * pd, seL4_Word addr) {
 		int err = sos_map_page(pd, frame, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
 		if(err){
 			dprintf(0,"Page mapping at %x failed with error code %d\n",addr, err);
+			return -3;
 		}
 	}
 
@@ -47,8 +53,8 @@ int vm_fault(pageDirectory * pd, seL4_Word addr) {
 
 seL4_Word get_translation(seL4_Word addr, seL4_Word faulttype, pageDirectory *pd) {
     uint32_t pd_offset = addr >> 20; //top 12 bits
-    uint32_t pt_offset = addr << 10;
-    pt_offset = pt_offset >> 22; //next 10 bits
+    uint32_t pt_offset = addr << 12;
+    pt_offset = pt_offset >> 24; //next 10 bits
 
     if(!pd->pTables[pd_offset]) { //missing level 1 entry 
         //check flags

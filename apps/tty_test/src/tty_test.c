@@ -41,9 +41,11 @@ thread_block(void){
 int malloc_hammer(){
 	int* bob;
 	int i = 0;
+
+	printf("\nStarting New Test\n");
 	while(1){
 		bob = malloc(1024*sizeof(int));
-		if((!(i%10)) || bob == 0x101e8010){
+		if(!(i % 1000)){
 			printf("At i = %d, Bob = %x\n", i, bob);
 		}
 		if(!bob){
@@ -56,6 +58,46 @@ int malloc_hammer(){
 return 0;
 }
 
+#define NPAGES 27
+#define TEST_ADDRESS 0x20000000
+#define PAGE_SIZE_4K 4096
+
+/* called from pt_test */
+static void
+do_pt_test(char *buf)
+{
+    int i;
+
+    /* set */
+    for (int i = 0; i < NPAGES; i++) {
+	    buf[i * PAGE_SIZE_4K] = i;
+    }
+
+    /* check */
+    for (int i = 0; i < NPAGES; i++) {
+	    assert(buf[i * PAGE_SIZE_4K] == i);
+    }
+}
+
+static void
+pt_test( void )
+{
+    /* need a decent sized stack */
+    char buf1[NPAGES * PAGE_SIZE_4K], *buf2 = NULL;
+
+    /* check the stack is above phys mem */
+    assert((void *) buf1 > (void *) TEST_ADDRESS);
+
+    /* stack test */
+    do_pt_test(buf1);
+	printf("Stack Okay\n");
+    /* heap test */
+    buf2 = malloc(NPAGES * PAGE_SIZE_4K);
+    assert(buf2);
+    do_pt_test(buf2);
+	printf("Heap Okay\n");
+    free(buf2);
+}
 
 int main(void){
     /* initialise communication */

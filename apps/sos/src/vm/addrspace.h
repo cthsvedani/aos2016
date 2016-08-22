@@ -9,7 +9,7 @@
 #include <string.h>
 
 #define VM_PDIR_LENGTH		4096
-#define VM_PTABLE_LENGTH	2048
+#define VM_PTABLE_LENGTH	 256
 
 #define REGION_STACK	 0x10000000
 #define STACK_BOTTOM	 0x60000000

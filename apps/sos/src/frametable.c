@@ -74,14 +74,10 @@ uint32_t frame_alloc(void) {
 
 	int err;
     
-    int * merror = malloc(100000);
-    assert(merror);
-    free(merror);
-
     err = cspace_ut_retype_addr(ftable[index].p_addr, seL4_ARM_SmallPageObject, seL4_PageBits,
 		cur_cspace,&(ftable[index].cptr));
     if(err){
-		dprintf(0,"Retype Failed at index %d\n With error code %d", index, err);
+		dprintf(0,"Retype Failed at index %d with error code %d\n", index, err);
 		ut_free(ftable[index].p_addr, seL4_PageBits);
 		ftable[index].p_addr = 0;
 		freeList_freeFrame(fNode);
