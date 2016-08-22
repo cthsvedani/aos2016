@@ -58,6 +58,7 @@ void freeList_init(seL4_Word count) {
 uint32_t frame_alloc(void) {
     freeNode* fNode = nextFreeFrame();
     if(!fNode){
+		dprintf(0,"Next Frame Not Found\n");
 		return 0;
 	}
 
@@ -66,6 +67,7 @@ uint32_t frame_alloc(void) {
     ftable[index].fNode = fNode;
     ftable[index].p_addr = ut_alloc(seL4_PageBits);
     if(!ftable[index].p_addr){
+		dprintf(0,"Ut alloc failed\n");
 		freeList_freeFrame(ftable[index].fNode);
 		ftable[index].fNode = NULL;
 		return 0;
@@ -76,6 +78,7 @@ uint32_t frame_alloc(void) {
     err = cspace_ut_retype_addr(ftable[index].p_addr, seL4_ARM_SmallPageObject, seL4_PageBits,
 		cur_cspace,&(ftable[index].cptr));
     if(err){
+		dprintf(0,"retype Failed\n");
 		ut_free(ftable[index].p_addr, seL4_PageBits);
 		ftable[index].p_addr = 0;
 		freeList_freeFrame(ftable[index].fNode);

@@ -167,10 +167,14 @@ void syscall_loop(seL4_CPtr ep) {
 				seL4_CPtr reply_cap;
 				reply_cap = cspace_save_reply_cap(cur_cspace);
 				assert(reply_cap != CSPACE_NULL);
-				vm_fault(tty_test_process.pd, seL4_GetMR(1));
-				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
-				seL4_SetMR(0,0);
-				seL4_Send(reply_cap,reply);
+				if(vm_fault(tty_test_process.pd, seL4_GetMR(1))){
+					dprintf(0,"Tty performed an illegal Operation and needs to close!\n");
+				}
+				else{
+					seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+					seL4_SetMR(0,0);
+					seL4_Send(reply_cap,reply);
+				}
 			}
 
         }else if(label == seL4_NoFault) {
@@ -307,14 +311,14 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     err = elf_load(tty_test_process.pd, elf_base, &heap_start);
     conditional_panic(err, "Failed to load elf image");
 
-	heap_start = heap_start + HEAP_OFFSET;
+//	heap_start = heap_start + HEAP_OFFSET;
 
-	new_region(tty_test_process.pd, heap_start, PROCESS_BREAK - heap_start, seL4_ARM_Default_VMAttributes); 	
+	new_region(tty_test_process.pd, HEAP_START, PROCESS_BREAK - HEAP_START, seL4_ARM_Default_VMAttributes); 	
 
     /* Create a stack frame */
     stack_frame = frame_alloc();
 	
-	new_region(tty_test_process.pd, PROCESS_STACK_TOP, PROCESS_STACK_TOP - PROCESS_BREAK,
+	new_region(tty_test_process.pd, PROCESS_STACK_TOP, PROCESS_STACK_TOP - STACK_BOTTOM,
 			seL4_ARM_Default_VMAttributes | REGION_STACK);
     err = sos_map_page(tty_test_process.pd, stack_frame,
                    PROCESS_STACK_TOP - (1 << seL4_PageBits),

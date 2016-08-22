@@ -28,11 +28,18 @@ pageDirectory* pageTable_create(void){
 int vm_fault(pageDirectory * pd, seL4_Word addr) {
 	region * reg = find_region(pd, addr); 
 	if(reg == NULL){
-		assert(0);
+		return -1;
 	}	
 	else{
 		int frame = frame_alloc();
-		sos_map_page(pd, frame, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes); 
+		if(!frame){
+			dprintf(0,"Memory Allocation Failed!\n");
+			return -2;			
+		}
+		int err = sos_map_page(pd, frame, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
+		if(err){
+			dprintf(0,"Page mapping at %x failed with error code %d\n",addr, err);
+		}
 	}
 
     return 0;

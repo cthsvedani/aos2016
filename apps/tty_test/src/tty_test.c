@@ -38,12 +38,31 @@ thread_block(void){
     seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
 }
 
+int malloc_hammer(){
+	int* bob;
+	int i = 0;
+	while(1){
+		bob = malloc(1000*sizeof(int));
+		if(!(i%100)){
+			printf("At i = %d, Bob = %x\n", i, bob);
+		}
+		if(!bob){
+			break;
+		}
+		bob[3] = 25;
+		i++;
+	}
+	printf("Out Of Memory\n");
+return 0;
+}
+
+
 int main(void){
     /* initialise communication */
-	int* npn = 0x8FFFE000;
-	*npn = 3442;
     ttyout_init();
 
+	malloc_hammer();
+	
     do {
         printf("task:\tHello world, I'm\ttty_test!\n");
         thread_block();

@@ -22,16 +22,15 @@
  * This is rather terrible, but is the simplest option without a
  * huge amount of infrastructure.
  */
-#define MORECORE_AREA_BYTE_SIZE 0x100000
-char morecore_area[MORECORE_AREA_BYTE_SIZE];
-
-/* Pointer to free space in the morecore area. */
-static uintptr_t morecore_base = (uintptr_t) &morecore_area;
-static uintptr_t morecore_top = (uintptr_t) &morecore_area[MORECORE_AREA_BYTE_SIZE];
+#define HEAP_START  0x10000000
+#define HEAP_BREAK	0x50000000
 
 /* Actual morecore implementation
    returns 0 if failure, returns newbrk if success.
 */
+
+long heap_base = HEAP_START;
+long heap_top = HEAP_BREAK;
 
 long
 sys_brk(va_list ap)
@@ -41,9 +40,9 @@ sys_brk(va_list ap)
 
     /*if the newbrk is 0, return the bottom of the heap*/
     if (!newbrk) {
-        ret = morecore_base;
-    } else if (newbrk < morecore_top && newbrk > (uintptr_t)&morecore_area[0]) {
-        ret = morecore_base = newbrk;
+        ret = heap_base;
+    } else if (newbrk < HEAP_BREAK && newbrk > (uintptr_t)HEAP_START) {
+        ret = heap_base = newbrk;
     } else {
         ret = 0;
     }
@@ -68,11 +67,11 @@ sys_mmap2(va_list ap)
     (void)offset;
     if (flags & MAP_ANONYMOUS) {
         /* Steal from the top */
-        uintptr_t base = morecore_top - length;
-        if (base < morecore_base) {
+        uintptr_t base = heap_top - length;
+        if (base < heap_base) {
             return -ENOMEM;
         }
-        morecore_top = base;
+        heap_top = base;
         return base;
     }
     assert(!"not implemented");
