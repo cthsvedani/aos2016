@@ -86,7 +86,7 @@ sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
     /* Allocate a PT object */
 	pd->pTables_pAddr[index] = ut_alloc(seL4_PageTableBits);
     if(pd->pTables_pAddr[index] == 0){
-        return err;
+        return seL4_NotEnoughMemory;
     }
 	
     /* Create the frame cap */
@@ -108,6 +108,9 @@ sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
 	if(!err){
 		assert(index < 4096);
 		pd->pTables[index] = malloc(sizeof(pageTable));
+        if(!pd->pTables[index]){
+            return seL4_NotEnoughMemory;
+        }
 	}
     return err;
 }

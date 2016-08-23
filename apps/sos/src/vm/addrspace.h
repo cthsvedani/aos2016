@@ -37,6 +37,7 @@ typedef struct sos_PageDirectory {
     seL4_ARM_PageDirectory PageD;			//CPtr for seL4 Free
 	seL4_Word PD_addr;						//UT * for ut_free
 	pageTable * pTables[VM_PDIR_LENGTH];	//SOS Pagetable
+    //may move to pagetable
 	seL4_Word pTables_pAddr[VM_PDIR_LENGTH];			//seL4 Memory location
 	seL4_ARM_PageTable pTables_CPtr[VM_PDIR_LENGTH];	//seL4 Cap Pointer
 } pageDirectory;

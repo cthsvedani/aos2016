@@ -3,6 +3,7 @@
 #include "ut_manager/ut.h"
 #include "frametable.h"
 #include "mapping.h"
+#include "vmem_layout.h"
 
 #define verbose 5
 #include "sys/debug.h"
@@ -54,6 +55,14 @@ int new_region(pageDirectory * pd, seL4_Word start,
 		size_t len, seL4_Word flags){
 // A define a new region, that we can compare against when we try
 // to declare a new frame
+    if(!start || find_region(pd, start) || find_region(pd,start + len)) {
+        return -1;
+    }
+
+    if(start > PROCESS_IPC_BUFFER || (start + len > PROCESS_IPC_BUFFER && !(
+                    flags & REGION_STACK))){
+        return -1;
+    }
 
 	region * reg = malloc(sizeof(region));
 	if(!reg){
@@ -68,7 +77,10 @@ int new_region(pageDirectory * pd, seL4_Word start,
 		pd->regions = reg;
 	}
 	else{
-		while(head->next){
+		while(head->next){           
+            if((reg->vbase < head->vbase) && ((reg->vbase + len) > (head->vbase + head->size))) {
+                return -1;
+            }
 			head = head->next;
 		}
 		head->next = reg;
@@ -107,8 +119,7 @@ region * find_region(pageDirectory *  pd, seL4_Word vAddr){
 				if((vAddr >= head->vbase) && vAddr < (head->vbase + head->size)){
 					return head;
 				}
-			}
-			else{
+			}else{
 				if(vAddr <= head->vbase && vAddr > (head->vbase - head->size)){
 					return head;
 				}

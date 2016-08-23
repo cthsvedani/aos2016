@@ -83,8 +83,9 @@ static int load_segment_into_vspace(pageDirectory * dest_as,
 
     */
 
-	new_region(dest_as, dst, segment_size, permissions); //Tell SOS about our new regions
-
+	if(new_region(dest_as, dst, segment_size, permissions)){ //Tell SOS about our new regions
+        return 1;
+            }
     assert(file_size <= segment_size);
 
     unsigned long pos;
@@ -123,9 +124,14 @@ static int load_segment_into_vspace(pageDirectory * dest_as,
         if (pos < file_size){
             memcpy((void*)kdst, (void*)src, MIN(nbytes, file_size - pos));
         }
+        //unmap, since we may use the same addr
 
+        //do not leak the pointer
+        
         /* Not observable to I-cache yet so flush the frame */
         seL4_ARM_Page_Unify_Instruction(sos_cap, 0, PAGESIZE);
+
+        seL4_ARM_Page_Unmap(sos_cap);
 
         pos += nbytes;
         dst += nbytes;
