@@ -104,6 +104,7 @@ int main(void){
     ttyout_init();
 
 	pt_test();	
+    /*malloc_hammer();*/
 
     do {
         printf("task:\tHello world, I'm\ttty_test!\n");

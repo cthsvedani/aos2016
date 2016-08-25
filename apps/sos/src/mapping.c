@@ -106,7 +106,7 @@ sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
                                  vaddr, 
                                  seL4_ARM_Default_VMAttributes);
 	if(!err){
-		assert(index < 4096);
+		assert(index < VM_PDIR_LENGTH);
 		pd->pTables[index] = malloc(sizeof(pageTable));
         if(!pd->pTables[index]){
             return seL4_NotEnoughMemory;
@@ -123,8 +123,8 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 
 	tindex = VADDR_TO_PTINDEX(vaddr); //Grab the next 8 bits.
 
-	assert(dindex < 4096);
-	assert(tindex < 256);
+	assert(dindex < VM_PDIR_LENGTH);
+	assert(tindex < VM_PTABLE_LENGTH);
 
 	assert(frame);
 
