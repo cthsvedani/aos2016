@@ -24,7 +24,7 @@ INCLUDE_DIRS  += $(SOURCE_DIR)/src
 
 # Libraries required to build the target
 LIBS := sel4 elf muslc cpio lwip ethdrivers \
-	 serial nfs clock sel4cspace platsupport
+	 serial nfs clock sos sel4cspace platsupport
 
 include $(SEL4_COMMON)/common.mk
 

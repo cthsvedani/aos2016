@@ -26,11 +26,6 @@ int sos_sys_read(int file, char *buf, size_t nbyte) {
     return -1;
 }
 
-int sos_sys_write(int file, const char *buf, size_t nbyte) {
-    assert(!"You need to implement this");
-    return -1;
-}
-
 void sos_sys_usleep(int msec) {
     assert(!"You need to implement this");
 }
@@ -40,3 +35,23 @@ int64_t sos_sys_time_stamp(void) {
     return -1;
 }
 
+int sos_sys_write(int file, const char *vData, size_t count) {
+	const char *realdata = vData;
+
+	int left = count;
+	int read = 0;
+	while(left > 0 ) {
+		int j;
+		seL4_SetMR(0, 1);
+		for(j = 1; j <= left && j <= seL4_MsgMaxLength; j++) {
+			seL4_SetMR(j, realdata[read + (j - 1)]);
+		}
+		seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, j+1);
+		seL4_SetTag(tag);
+		seL4_Call(1, tag);
+		int sent = (int)seL4_GetMR(0);
+		read = read + sent;
+		left = left - sent;
+	}
+	return read;
+}

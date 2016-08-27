@@ -42,6 +42,7 @@
 #include "frametable_tests.h"
 
 #include "vm/addrspace.h"
+#include <sos/rpc.h>
 
 /* This is the index where a clients syscall enpoint will
  * be stored in the clients cspace. */
@@ -72,7 +73,6 @@ struct serial* serial;
 
 
 struct {
-
     seL4_Word tcb_addr;
     seL4_TCB tcb_cap;
 
