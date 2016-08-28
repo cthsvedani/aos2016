@@ -26,4 +26,9 @@ typedef struct rpc_client_state_s {
 
     void *userptr;
 } rpc_client_state_t;
+
+typedef struct binding_object {
+    void* client_vaddr;
+    void* server_vaddr;
+};
 #endif

@@ -101,9 +101,9 @@ pt_test( void )
 
 int main(void){
     /* initialise communication */
-    ttyout_init();
+    /*ttyout_init();*/
 
-	pt_test();	
+	/*pt_test();	*/
     /*malloc_hammer();*/
 
     do {

@@ -12,6 +12,7 @@
 #define _TTYOUT_H
 
 #include <stdio.h>
+#include <sos.h>
 
 /* Initialise tty output.
  * Must be called prior to any IPC receive operation.
@@ -29,9 +30,9 @@ extern void ttyout_init(void);
 
 /* Print to the proper console.  You will need to finish these implementations
  */
-extern size_t
-sos_write(void *data, size_t count);
-extern size_t
-sos_read(void *data, size_t count);
+//extern size_t
+//sos_write(void *data, size_t count);
+//extern size_t
+//sos_read(void *data, size_t count);
 
 #endif
