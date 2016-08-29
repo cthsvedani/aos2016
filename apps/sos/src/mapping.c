@@ -103,7 +103,6 @@ sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
 	int index = VADDR_TO_PDINDEX(vaddr);
 
 	vaddr = VADDR_TO_PDALIGN(vaddr); 
-
 	dprintf(1,"Attempting to map Page Table %p\n", vaddr);
 
     /* Allocate a PT object */
@@ -135,6 +134,8 @@ sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
             return seL4_NotEnoughMemory;
         }
 	}
+
+
     return err;
 }
 
@@ -168,6 +169,11 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 		pd->pTables[dindex]->frameIndex[tindex] = frame;
 	}
 
+    /* Map the user_phy_addr to sos */
+    dprintf(0, "MAPPING paddr 0x%x -> 0x%x \n", ftable[frame].p_addr, VMEM_START + ftable[frame].p_addr);
+    map_page(ftable[frame].kern_cptr, seL4_CapInitThreadPD, 
+            VMEM_START + ftable[frame].p_addr, 
+            seL4_AllRights, seL4_ARM_Default_VMAttributes);
 	return err;
 }
 

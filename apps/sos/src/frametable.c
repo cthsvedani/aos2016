@@ -94,6 +94,7 @@ uint32_t frame_alloc(void) {
 		freeList_freeFrame(fNode);
 		return 0;
 	}
+
     return index;
 }
 
