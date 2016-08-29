@@ -24,7 +24,7 @@
 #include <stdlib.h>
 
 #include <sel4/sel4.h>
-
+#include "sos.h"
 
 #include "ttyout.h"
 
@@ -100,16 +100,16 @@ pt_test( void )
 }
 
 int main(void){
-    /* initialise communication */
-    /*ttyout_init();*/
-
-	/*pt_test();	*/
-    /*malloc_hammer();*/
 
     do {
-        printf("task:\tHello world, I'm\ttty_test!\n");
+	    printf("task:\tHello world, I'm\ttty_test!\n");
+		sos_sys_usleep(5000);
+		int64_t time = sos_sys_time_stamp();
+		printf("5 seconds later, it's %lld\n", time);
+		sos_sys_usleep(20000);
+		time = sos_sys_time_stamp();
+		printf("Now it's %lld\n", time);
         thread_block();
-        // sleep(1);	// Implement this as a syscall
     } while(1);
 
     return 0;

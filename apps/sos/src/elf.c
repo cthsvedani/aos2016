@@ -83,9 +83,9 @@ static int load_segment_into_vspace(pageDirectory * dest_as,
 
     */
 
-	if(new_region(dest_as, dst, segment_size, permissions)){ //Tell SOS about our new regions
+	if(new_region(dest_as, dst, segment_size, permissions) == NULL){ //Tell SOS about our new regions
         return 1;
-            }
+    }
     assert(file_size <= segment_size);
 
     unsigned long pos;

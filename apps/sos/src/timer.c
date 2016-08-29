@@ -176,13 +176,14 @@ uint64_t epit_getCurrentTimestamp() {
     };
     uint64_t count = 0xFFFFFFFF - timers[1].reg->REG_Counter;
     status[1] = timers[1].reg->REG_Status;
-    if(status[0] != status[1]){
-	if(count > 0xF0000000){
-		offset = 1;
-	}
-	else{
-		offset = 0;
-	}	
+	//The clock rolled over as we read the value, so we might need to add a full cycle. 
+	if(status[0] != status[1]){
+		if(count > 0xF0000000){
+			offset = 1; //If the count is high, then we read after rollover, add a cycle.
+		}
+		else{
+		offset = 0; //The count is low, so we read before the rollover, we don't need an extra cycle
+		}	
     }
 
     //Convert to ms
@@ -216,7 +217,7 @@ void epit_setTime(EPIT *timer, uint64_t milliseconds, int reset){
 }
 
 void epit_startTimer(EPIT *timer){
-   // for(volatile int i = 0; i < 1; i++);//The timer needs a bit to realise what is going on 
+	//The timer needs a tick to realise what is going on 
     asm("nop");
     timer->REG_Control |= EPIT_EN;
 }
@@ -224,7 +225,6 @@ void epit_startTimer(EPIT *timer){
 void epit_stopTimer(EPIT *timer){
 	timer->REG_Control &= (0xFFFFFFFF ^ EPIT_EN);
 	asm("nop");
-//	for(volatile int i = 0; i < 1; i++);
 }
 
 int epit_timerRunning(EPIT *timer){
@@ -241,16 +241,20 @@ uint32_t epit_currentCompare(EPIT *timer){
 
 int allocate_timer_id() {
     int i;
-    for(i = 0; i < CLOCK_MAX_TIMERS; i++) {
-        if(!freelist[i]) 
-            return freelist[i];
+    for(i = 1; i < CLOCK_MAX_TIMERS; i++) {
+        if(!freelist[i]){ 
+			freelist[i]++;
+			return i;
+		}
     }
     return -1;
 }
 
 int deallocate_timer_id(int id) {
-    if(freelist[id])
+    if(freelist[id]){
         freelist[id] = 0;
+		return 0;
+	}
     return -1;
 }
 // On Failure, returns 0. Calling function must check!
@@ -258,7 +262,7 @@ uint32_t register_timer(uint64_t delay, timer_callback_t callback, void *data) {
     //create node
     callback_node_t *node = malloc(sizeof(callback_node_t));
     if(!node){    
-	dprintf(0, "Failed to Acquire Memory for Timer\n");
+		dprintf(0, "Failed to Acquire Memory for Timer\n");
 	    return 0;
     } 
     node->callback = callback;

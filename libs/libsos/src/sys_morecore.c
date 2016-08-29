@@ -16,21 +16,21 @@
 #include <errno.h>
 #include <assert.h>
 
+#include <sel4/sel4.h>
+
 /*
  * Statically allocated morecore area.
  *
  * This is rather terrible, but is the simplest option without a
  * huge amount of infrastructure.
  */
-#define HEAP_START  0x10000000
-#define HEAP_BREAK	0x50000000
+
+#define SYSCALL_ENDPOINT_SLOT    1
+#define SOS_SYS_BRK 50
 
 /* Actual morecore implementation
    returns 0 if failure, returns newbrk if success.
 */
-
-long heap_base = HEAP_START;
-long heap_top = HEAP_BREAK;
 
 long
 sys_brk(va_list ap)
@@ -38,15 +38,13 @@ sys_brk(va_list ap)
     uintptr_t ret;
     uintptr_t newbrk = va_arg(ap, uintptr_t);
 
-    /*if the newbrk is 0, return the bottom of the heap*/
-    if (!newbrk) {
-        ret = heap_base;
-    } else if (newbrk < HEAP_BREAK && newbrk > (uintptr_t)HEAP_START) {
-        ret = heap_base = newbrk;
-    } else {
-        ret = 0;
-    }
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,2);
+	seL4_SetMR(0, SOS_SYS_BRK);
+	seL4_SetMR(1, newbrk);
 
+	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+
+	ret = seL4_GetMR(0);
     return ret;
 }
 
@@ -65,8 +63,8 @@ sys_mmap2(va_list ap)
     (void)prot;
     (void)fd;
     (void)offset;
-    if (flags & MAP_ANONYMOUS) {
-        /* Steal from the top */
+/*    if (flags & MAP_ANONYMOUS) {
+        //Steal from the top 
         uintptr_t base = heap_top - length;
         if (base < heap_base) {
             return -ENOMEM;
@@ -74,6 +72,7 @@ sys_mmap2(va_list ap)
         heap_top = base;
         return base;
     }
+*/
     assert(!"not implemented");
     return -ENOMEM;
 }
