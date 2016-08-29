@@ -17,6 +17,8 @@
 #include <sel4/sel4.h>
 
 #define SYSCALL_ENDPOINT_SLOT    1
+#define SOS_SYS_SLEEP 126
+#define SOS_SYS_TIMESTAMP 127
 
 int sos_sys_open(const char *path, fmode_t mode) {
     assert(!"You need to implement this");
@@ -33,10 +35,6 @@ size_t sos_write(void *vData, size_t count) {
 
 	int left = count;
 	int read = 0;
-    seL4_SetMR(0, 3);
-    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0, 1);
-    seL4_SetTag(tag);
-    seL4_Call(1, tag);
 	while(left > 0 ) {
 		int j;
 		seL4_SetMR(0, 1);
@@ -54,12 +52,22 @@ size_t sos_write(void *vData, size_t count) {
 }
 
 void sos_sys_usleep(int msec) {
-    assert(!"You need to implement this");
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,2);
+	seL4_SetMR(0, SOS_SYS_SLEEP);
+	seL4_SetMR(1, msec);
+	seL4_SetTag(tag);
+	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
 }
 
 int64_t sos_sys_time_stamp(void) {
-    assert(!"You need to implement this");
-    return -1;
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
+	seL4_SetMR(0, SOS_SYS_TIMESTAMP);
+	seL4_SetTag(tag);
+	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+	int64_t time = seL4_GetMR(0);
+	time = time << 32;
+	time += seL4_GetMR(1);
+	return time;
 }
 
 int sos_sys_write(int file, const char *vData, size_t count) {
@@ -67,12 +75,6 @@ int sos_sys_write(int file, const char *vData, size_t count) {
 
 	int left = count;
 	int read = 0;
-    seL4_SetMR(0, 3);
-    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0, 1);
-    seL4_SetTag(tag);
-    seL4_Call(1, tag);
-
-
 	while(left > 0 ) {
 		int j;
 		seL4_SetMR(0, 1);

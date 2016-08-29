@@ -40,6 +40,8 @@
 
 #include "frametable.h"
 #include "frametable_tests.h"
+#include "syscall.h"
+
 
 #include "vm/addrspace.h"
 #include <sos/rpc.h>
@@ -75,6 +77,8 @@ struct serial* serial;
 struct {
     seL4_Word tcb_addr;
     seL4_TCB tcb_cap;
+
+	region * heap;
 
 	pageDirectory * pd;
     seL4_CPtr ipc_buffer_cap;
@@ -113,7 +117,6 @@ void handle_syscall(seL4_Word badge, int num_args) {
     /* Save the caller */
     reply_cap = cspace_save_reply_cap(cur_cspace);
     assert(reply_cap != CSPACE_NULL);
-    dprintf(0,"Tty performed an illegal Operation and needs to close!\n");
 
     /* Process system call */
     switch (syscall_number) {
@@ -140,6 +143,23 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			break;
 		}
 
+	case SOS_SYS_USLEEP:
+		{
+			if(sos_sleep(seL4_GetMR(1), reply_cap)){
+				//Sleep failed What do?!
+				dprintf(0, "Sleep failed, what do?\n");
+			}
+		}
+		break;
+	case SOS_SYS_TIMESTAMP:
+		{
+			uint64_t time = time_stamp();
+			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,2);
+			seL4_SetMR(0, (time >> 32));
+			seL4_SetMR(1, (time << 32) >> 32);
+			seL4_Send(reply_cap,reply);
+		}
+		break;
     default:
         dprintf(0, "Unknown syscall %d\n", syscall_number);
         /* we don't want to reply to an unknown syscall */
@@ -316,8 +336,6 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     err = elf_load(tty_test_process.pd, elf_base, &heap_start);
     conditional_panic(err, "Failed to load elf image");
 
-//	heap_start = heap_start + HEAP_OFFSET;
-
 	new_region(tty_test_process.pd, HEAP_START, PROCESS_BREAK - HEAP_START, seL4_ARM_Default_VMAttributes); 	
 
     /* Create a stack frame */
@@ -417,7 +435,6 @@ static void _sos_init(seL4_CPtr* ipc_ep, seL4_CPtr* async_ep){
     _sos_ipc_init(ipc_ep, async_ep);
 
     /* Map PHY memory to USER_VMEM */
-    map_phy_mem(low, high, cur_cspace);
 }
 
 static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge) {

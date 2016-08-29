@@ -47,7 +47,7 @@ pageDirectory* pageTable_create(void);
 void PD_destroy(pageDirectory * pd);
 void PT_destroy(pageTable * pt);
 
-int new_region(pageDirectory * pd, seL4_Word start,
+region * new_region(pageDirectory * pd, seL4_Word start,
 		size_t len, seL4_Word flags);
 
 region * find_region(pageDirectory * pd, seL4_Word vAddr);

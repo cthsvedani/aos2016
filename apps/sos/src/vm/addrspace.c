@@ -51,22 +51,22 @@ int vm_fault(pageDirectory * pd, seL4_Word addr) {
     return 0;
 }
 
-int new_region(pageDirectory * pd, seL4_Word start,
+region * new_region(pageDirectory * pd, seL4_Word start,
 		size_t len, seL4_Word flags){
 // A define a new region, that we can compare against when we try
 // to declare a new frame
     if(!start || find_region(pd, start) || find_region(pd,start + len)) {
-        return -1;
+        return NULL;
     }
 
     if(start > PROCESS_IPC_BUFFER || (start + len > PROCESS_IPC_BUFFER && !(
                     flags & REGION_STACK))){
-        return -1;
+        return NULL;
     }
 
 	region * reg = malloc(sizeof(region));
 	if(!reg){
-		return -1;
+		return NULL;
 	}
 	dprintf(0,"Adding New Region at %x , for %d bytes\n", start, len);
 	reg->vbase = start;
@@ -79,13 +79,13 @@ int new_region(pageDirectory * pd, seL4_Word start,
 	else{
 		while(head->next){           
             if((reg->vbase < head->vbase) && ((reg->vbase + len) > (head->vbase + head->size))) {
-                return -1;
+                return NULL;
             }
 			head = head->next;
 		}
 		head->next = reg;
 	}
-	return 0;
+	return reg;
 }
 
 
