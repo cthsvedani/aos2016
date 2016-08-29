@@ -15,7 +15,6 @@
 #include "vmem_layout.h"
 
 #define USER_VIRT(paddr)  (paddr + USER_PSY_START)
-#define PAGE_OFFSET(a) ((a) & ((1 << seL4_PageBits) - 1))
 
 #define verbose 5
 #include <sys/panic.h>

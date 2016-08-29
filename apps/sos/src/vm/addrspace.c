@@ -139,13 +139,58 @@ void free_region_list(region * head){
 } 
 
 region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
-    return 0;
+    region *head = malloc(sizeof(region));
+    region *tail = head;
+
+    while(len > 0) {
+        if(!pt_ckptr(user_vaddr, len, user_pd)) {
+            dprintf(0,"Invalid memory region\n");
+            free_region_list(head);
+            return NULL;
+        }   
+
+        seL4_Word sos_vaddr = get_user_translation(user_vaddr, user_pd);
+        if(!sos_vaddr) {
+            dprintf(0, "Mapping does not exist.\n");
+            free_region_list(head);
+            return NULL;
+        }
+
+        size_t page_len = PAGE_ALIGN(user_vaddr + (1 << seL4_PageBits)) - user_vaddr;
+        if( len > page_len ) {
+            tail->size = page_len;
+            len -= page_len;
+            tail->next = malloc(sizeof(region));
+            tail = tail->next;
+        } else {
+            tail->size = len;
+            len = 0;
+        }
+        tail->vbase = sos_vaddr;
+        tail->flags = seL4_AllRights;
+        tail->next = NULL;
+        user_vaddr -= tail->size;
+    }
+    
+    return head;
 }
 
 seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
-    return 0;
+    uint32_t dindex = VADDR_TO_PDINDEX(user_vaddr);
+    uint32_t tindex = VADDR_TO_PTINDEX(user_vaddr);
+    uint32_t index = user_pd->pTables[dindex]->frameIndex[tindex];
+    return index;
 }
 
 int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
+    region *start_region = find_region(user_pd, user_vaddr);
+    region *end_region = find_region(user_pd, user_vaddr + len);
+/*//TODO CHECK FLAGS*/
+    if((start_region && end_region) && 
+        //same memory region
+        (start_region->vbase == end_region->vbase)){
+        return 1;
+    }
+
     return 0;
 }

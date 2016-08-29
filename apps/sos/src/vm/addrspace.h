@@ -16,6 +16,9 @@
 #define PROCESS_BREAK	 0x50000000
 #define	HEAP_START		 0x10000000
 
+#define PAGE_OFFSET(a) ((a) & ((1 << seL4_PageBits) - 1))
+#define PAGE_ALIGN(a) ((a) & ~((1 << seL4_PageBits) -1))
+
 
 #define VM_FAULT_READ   0x1
 #define VM_FAULT_WRITE  0x2

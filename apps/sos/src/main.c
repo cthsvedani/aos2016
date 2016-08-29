@@ -131,6 +131,12 @@ void handle_syscall(seL4_Word badge, int num_args) {
 
 	case SOS_SYSCALL1:
 		{
+            dprintf(0, "in syscall1: user v_addr is 0x%x \n",
+                   seL4_GetMR(1)); 
+            region *shared_region = get_shared_region(seL4_GetMR(1), 100, 
+                                                    tty_test_process.pd);
+            dprintf(0, "in syscall1: user v_addr is 0x%x \n",
+                   seL4_GetMR(1)); 
 			char buf[seL4_MsgMaxLength];
 			for(int i = 1; i < num_args; i++) {
 				buf[i-1] = seL4_GetMR(i);
