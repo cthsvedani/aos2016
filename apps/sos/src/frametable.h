@@ -8,6 +8,7 @@ typedef struct frameNode{
     uint32_t index;
     seL4_Word p_addr;
     seL4_CPtr cptr;
+    seL4_CPtr kern_cptr;
     struct frameNode * next;
 } frame;
 
