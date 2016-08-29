@@ -55,7 +55,9 @@ region * find_region(pageDirectory * pd, seL4_Word vAddr);
 void free_region_list(region* head);
 
 int vm_fault(pageDirectory * pd,seL4_Word addr);
-seL4_Word get_translation(seL4_Word addr, seL4_Word faulttype, pageDirectory *pd);
-int PT_ckflags(seL4_Word faulttype, seL4_Word addr, pageDirectory *pd);
+
+region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
+seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd);
+int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
 
 #endif

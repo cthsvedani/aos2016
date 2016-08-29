@@ -137,3 +137,15 @@ void free_region_list(region * head){
 		free(tmp);
 	}
 } 
+
+region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
+    return 0;
+}
+
+seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
+    return 0;
+}
+
+int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
+    return 0;
+}
