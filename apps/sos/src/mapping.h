@@ -29,6 +29,7 @@
  * @param attr The VM attributes to use for the mapping
  * @return 0 on success
  */
+int map_phy_mem(int low, int high, seL4_Word cur_cspace);
 int map_page(seL4_CPtr frame_cap, seL4_ARM_PageDirectory pd, seL4_Word vaddr, 
                 seL4_CapRights rights, seL4_ARM_VMAttributes attr);
 

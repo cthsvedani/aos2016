@@ -30,5 +30,5 @@ typedef struct rpc_client_state_s {
 typedef struct binding_object {
     void* client_vaddr;
     void* server_vaddr;
-};
+} bo;
 #endif

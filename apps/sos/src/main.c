@@ -90,6 +90,9 @@ struct {
  */
 #define SOS_SYSCALL0 0
 #define SOS_SYSCALL1 1
+#define SOS_SYSCALL2 2
+#define SOS_SYSCALL3 3
+#define SOS_SYSCALL4 4
 
 seL4_CPtr _sos_ipc_ep_cap;
 seL4_CPtr _sos_interrupt_ep_cap;
@@ -136,53 +139,6 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			seL4_Send(reply_cap, reply);
 			break;
 		}
-    case SOS_SYSCALL3:
-        {
-            /* First we need to create a frame */
-            uint32_t frame = frame_alloc();
-
-            /* Copy the frame cap as we need to map it into 2 address spaces */
-            sos_cap = cspace_copy_cap(cur_cspace, cur_cspace, ftable[frame].cptr, seL4_AllRights);
-            conditional_panic(sos_cap == 0, "Failed to copy frame cap");
-
-            /* Map the frame into tty_test address spaces */
-            err = sos_map_page(tty_test.pd, frame, vpage, permissions, 
-                           seL4_ARM_Default_VMAttributes);
-            conditional_panic(err, "Failed to map to tty address space");
-
-            /* Map the frame into sos address spaces */
-            err = map_page(sos_cap, seL4_CapInitThreadPD, kvpage, seL4_AllRights, 
-                           seL4_ARM_Default_VMAttributes);
-            conditional_panic(err, "Failed to map sos address space");
-
-        /* Now copy our data into the destination vspace. */
-        nbytes = PAGESIZE - (dst & PAGEMASK);
-        if (pos < file_size){
-            memcpy((void*)kdst, (void*)src, MIN(nbytes, file_size - pos));
-        }
-        //unmap, since we may use the same addr
-
-        //do not leak the pointer
-        
-        /* Not observable to I-cache yet so flush the frame */
-        seL4_ARM_Page_Unify_Instruction(sos_cap, 0, PAGESIZE);
-
-        seL4_ARM_Page_Unmap(sos_cap);
-
-            frame_alloc();
-			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
-			seL4_SetMR(0, ret);
-			seL4_Send(reply_cap, reply);
-			break;
-        }
-    case SOS_SYSCALL4:
-        {
-			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
-			seL4_SetMR(0, ret);
-			seL4_Send(reply_cap, reply);
-			break;
-        }
-
 
     default:
         dprintf(0, "Unknown syscall %d\n", syscall_number);
@@ -453,10 +409,15 @@ static void _sos_init(seL4_CPtr* ipc_ep, seL4_CPtr* async_ep){
     err = dma_init(dma_addr, DMA_SIZE_BITS);
     conditional_panic(err, "Failed to intiialise DMA memory\n");
 
+
+    /* Create framtable */
     frametable_init(low, high, cur_cspace);
+
     /* Initialiase other system compenents here */
     _sos_ipc_init(ipc_ep, async_ep);
 
+    /* Map PHY memory to USER_VMEM */
+    map_phy_mem(low, high, cur_cspace);
 }
 
 static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge) {
