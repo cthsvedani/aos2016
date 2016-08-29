@@ -74,10 +74,21 @@ uint32_t frame_alloc(void) {
 
 	int err;
     
+   //retype memory and save cap for user  
     err = cspace_ut_retype_addr(ftable[index].p_addr, seL4_ARM_SmallPageObject, seL4_PageBits,
 		cur_cspace,&(ftable[index].cptr));
     if(err){
 		dprintf(0,"Retype Failed at index %d with error code %d\n", index, err);
+		ut_free(ftable[index].p_addr, seL4_PageBits);
+		ftable[index].p_addr = 0;
+		freeList_freeFrame(fNode);
+		return 0;
+	}
+
+   //save cap for kernel
+    ftable[index].kern_cptr = cspace_copy_cap(cur_cspace, cur_cspace, ftable[index].cptr, seL4_AllRights);
+    if(!ftable[index].kern_cptr){
+		dprintf(0,"Kernel cap failed at index %d with error code %d\n", index, err);
 		ut_free(ftable[index].p_addr, seL4_PageBits);
 		ftable[index].p_addr = 0;
 		freeList_freeFrame(fNode);

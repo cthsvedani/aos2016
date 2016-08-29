@@ -417,7 +417,7 @@ static void _sos_init(seL4_CPtr* ipc_ep, seL4_CPtr* async_ep){
     _sos_ipc_init(ipc_ep, async_ep);
 
     /* Map PHY memory to USER_VMEM */
-    map_phy_mem(low, high, cur_cspace);
+    /*map_phy_mem(low, high, cur_cspace);*/
 }
 
 static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge) {
