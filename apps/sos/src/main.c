@@ -32,6 +32,7 @@
 
 #include "clock/clock.h"
 #include "timer.h"
+#include "devices.h"
 
 #include <autoconf.h>
 
@@ -47,7 +48,6 @@
 #include <sos/rpc.h>
 #include <sos.h>
 
-#define IO_BUFFER_LENGTH 8096
 
 /* This is the index where a clients syscall enpoint will
  * be stored in the clients cspace. */
@@ -449,18 +449,6 @@ uint32_t timerid[2];
 /*
  * Main entry point - called by crt.
  */
-char serialbuffer[IO_BUFFER_LENGTH];
-int serialReadIndex;
-int serialWriteIndex;
-void serial_callback(struct serial * serial, char c){
-	if(serialWriteIndex != serialReadIndex){
-		serialbuffer[serialWriteIndex] = c;
-		serialWriteIndex++;
-		if(serialWriteIndex == IO_BUFFER_LENGTH){
-			serialWriteIndex = 0;	
-		}
-	}
-}
 
 int main(void) {
 

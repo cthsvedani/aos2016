@@ -19,8 +19,8 @@ typedef enum{
 } fd_mode;
 
 
-typedef int (*read_t)(char* buffer, int len, seL4_CPtr reply);
-typedef int (*write_t)(char* buffer, int len);
+typedef int (*read_t)(void* device, char* buffer, int len, seL4_CPtr reply);
+typedef int (*write_t)(void* device, char* buffer, int len);
 
 typedef struct fddev{
 	void* device;
