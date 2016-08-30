@@ -13,8 +13,7 @@
 
 #define REGION_STACK	 0x10000000
 #define STACK_BOTTOM	 0x60000000
-#define PROCESS_BREAK	 0x50000000
-#define	HEAP_START		 0x10000000
+#define	HEAP_BUFFER		 0x00010000
 
 #define PAGE_OFFSET(a) ((a) & ((1 << seL4_PageBits) - 1))
 #define PAGE_ALIGN(a) ((a) & ~((1 << seL4_PageBits) -1))

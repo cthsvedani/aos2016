@@ -26,10 +26,10 @@ int sos_sleep(int msec, seL4_CPtr reply_cap){
 }
 
 uint32_t sos_brk(long newbreak, pageDirectory * pd, region * heap){
+	dprintf(0, "PD is 0x%x, Heap is 0x%x\n", pd, heap);
 	if(newbreak == 0){
 		return heap->vbase;
 	}
-
 	if(newbreak < heap->vbase || find_region(pd, newbreak)){
 		return 0;
 	}

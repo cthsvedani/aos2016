@@ -18,13 +18,6 @@
 
 #include <sel4/sel4.h>
 
-/*
- * Statically allocated morecore area.
- *
- * This is rather terrible, but is the simplest option without a
- * huge amount of infrastructure.
- */
-
 #define SYSCALL_ENDPOINT_SLOT    1
 #define SOS_SYS_BRK 50
 
@@ -73,7 +66,6 @@ sys_mmap2(va_list ap)
         return base;
     }
 */
-    assert(!"not implemented");
     return -ENOMEM;
 }
 

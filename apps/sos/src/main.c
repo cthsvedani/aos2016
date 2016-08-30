@@ -157,6 +157,14 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			seL4_Send(reply_cap,reply);
 		}
 		break;
+	case SOS_SYS_BRK:
+	{
+		uint32_t brk = sos_brk(seL4_GetMR(1), tty_test_process.pd, tty_test_process.heap);
+		seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+		seL4_SetMR(0, brk);
+		seL4_Send(reply_cap, reply);
+	}
+		break;
     default:
         dprintf(0, "Unknown syscall %d\n", syscall_number);
         /* we don't want to reply to an unknown syscall */
@@ -332,8 +340,8 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     /* load the elf image */
     err = elf_load(tty_test_process.pd, elf_base, &heap_start);
     conditional_panic(err, "Failed to load elf image");
-
-	new_region(tty_test_process.pd, HEAP_START, PROCESS_BREAK - HEAP_START, seL4_ARM_Default_VMAttributes); 	
+	heap_start += HEAP_BUFFER;
+	tty_test_process.heap = new_region(tty_test_process.pd, heap_start, 0, seL4_ARM_Default_VMAttributes); 	
 
     /* Create a stack frame */
     stack_frame = frame_alloc();
