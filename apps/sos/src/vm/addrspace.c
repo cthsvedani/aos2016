@@ -156,20 +156,20 @@ region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * use
             return NULL;
         }
 
+        tail->vbase = sos_vaddr + PAGE_OFFSET(user_vaddr);
         size_t page_len = PAGE_ALIGN(user_vaddr + (1 << seL4_PageBits)) - user_vaddr;
         if( len > page_len ) {
             tail->size = page_len;
             len -= page_len;
             tail->next = malloc(sizeof(region));
+            user_vaddr += tail->size;
             tail = tail->next;
         } else {
             tail->size = len;
             len = 0;
         }
-        tail->vbase = sos_vaddr;
         tail->flags = seL4_AllRights;
         tail->next = NULL;
-        user_vaddr -= tail->size;
     }
     
     return head;
@@ -179,7 +179,7 @@ seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
     uint32_t dindex = VADDR_TO_PDINDEX(user_vaddr);
     uint32_t tindex = VADDR_TO_PTINDEX(user_vaddr);
     uint32_t index = user_pd->pTables[dindex]->frameIndex[tindex];
-    return ftable[index].p_addr;
+    return VMEM_START + (ftable[index].index << seL4_PageBits);
 }
 
 int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {

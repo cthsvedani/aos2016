@@ -11,8 +11,10 @@ void rpc_call(seL4_MessageInfo_t tag, seL4_Word endpoint) {
     seL4_Call(endpoint, tag);
 }
 
-void rpc_call_data(seL4_MessageInfo_t tag, seL4_Word syscall_num, void* buf){
-    
+void rpc_call_data(seL4_MessageInfo_t tag, void *vData, size_t count, seL4_Word endpoint){
+    seL4_SetMR(1, vData);
+    seL4_SetMR(2, count);
+    rpc_call(tag, endpoint);
 }
 
 void rpc_call_mr(seL4_MessageInfo_t tag, seL4_Word endpoint) {

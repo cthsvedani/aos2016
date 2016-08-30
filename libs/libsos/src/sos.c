@@ -20,6 +20,7 @@
 #define SYSCALL_ENDPOINT_SLOT    1
 #define SOS_SYS_SLEEP 126
 #define SOS_SYS_TIMESTAMP 127
+#define SOS_SYS_WRITE 1
 
 int sos_sys_open(const char *path, fmode_t mode) {
     assert(!"You need to implement this");
@@ -33,24 +34,10 @@ int sos_sys_read(int file, char *buf, size_t nbyte) {
 
 size_t sos_write(void *vData, size_t count) {
 	const char *realdata = vData;
-
-	int left = count;
-	int read = 0;
-	while(left > 0 ) {
-		int j;
-		seL4_SetMR(0, 1);
-		for(j = 1; j <= left && j <= seL4_MsgMaxLength; j++) {
-			seL4_SetMR(j, realdata[read + (j - 1)]);
-		}
-		seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, j+1);
-		seL4_SetTag(tag);
-        seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
-		int sent = (int)seL4_GetMR(0);
-		read = read + sent;
-		left = left - sent;
-	}
-    dprintf(0,"in sos_write");
-	return read;
+    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,3);
+    seL4_SetMR(0, SOS_SYS_WRITE);
+    rpc_call_data(tag, vData, count + 1, SYSCALL_ENDPOINT_SLOT);
+    return count;
 }
 
 void sos_sys_usleep(int msec) {
@@ -58,16 +45,12 @@ void sos_sys_usleep(int msec) {
 	seL4_SetMR(0, SOS_SYS_SLEEP);
 	seL4_SetMR(1, msec);
     rpc_call_mr(tag, SYSCALL_ENDPOINT_SLOT);
-	/*seL4_SetTag(tag);*/
-	/*seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);*/
 }
 
 int64_t sos_sys_time_stamp(void) {
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
 	seL4_SetMR(0, SOS_SYS_TIMESTAMP);
     rpc_call_mr(tag, SYSCALL_ENDPOINT_SLOT);
-	/*seL4_SetTag(tag);*/
-	/*seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);*/
 	int64_t time = seL4_GetMR(0);
 	time = time << 32;
 	time += seL4_GetMR(1);
@@ -75,23 +58,5 @@ int64_t sos_sys_time_stamp(void) {
 }
 
 int sos_sys_write(int file, const char *vData, size_t count) {
-	const char *realdata = vData;
-    dprintf(0, "in sos_sys_write");
-
-	int left = count;
-	int read = 0;
-	while(left > 0 ) {
-		int j;
-		seL4_SetMR(0, 1);
-		for(j = 1; j <= left && j <= seL4_MsgMaxLength; j++) {
-			seL4_SetMR(j, realdata[read + (j - 1)]);
-		}
-		seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, j+1);
-		seL4_SetTag(tag);
-        seL4_Call(1, tag);
-		int sent = (int)seL4_GetMR(0);
-		read = read + sent;
-		left = left - sent;
-	}
-	return read;
+    return count;
 }

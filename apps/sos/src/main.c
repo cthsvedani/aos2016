@@ -129,23 +129,41 @@ void handle_syscall(seL4_Word badge, int num_args) {
 
         break;
 
-	case SOS_SYSCALL1:
+	case SOS_SYS_WRITE:
 		{
-            dprintf(0, "in syscall1: user v_addr is 0x%x \n",
-                   seL4_GetMR(1)); 
-            region *shared_region = get_shared_region(seL4_GetMR(1), 100, 
+            size_t count = seL4_GetMR(2);
+            dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",
+                   seL4_GetMR(1), count); 
+            if(num_args == 1) {
+                seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
+                seL4_SetMR(0, 1);
+                seL4_Send(reply_cap, reply);
+                break;
+            }
+
+            region *shared_region = get_shared_region(seL4_GetMR(1), count, 
                                                     tty_test_process.pd);
-            dprintf(0, "in syscall1: user v_addr is 0x%x \n",
-                   seL4_GetMR(1)); 
-			char buf[seL4_MsgMaxLength];
-			for(int i = 1; i < num_args; i++) {
-				buf[i-1] = seL4_GetMR(i);
-			}
-			int ret;
-			ret = serial_send(serial, buf, num_args - 1);
-			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
-			seL4_SetMR(0, ret);
-			seL4_Send(reply_cap, reply);
+            dprintf(0, "shared_region_1 addr 0x%x, size %d \n", shared_region->vbase, shared_region->size);
+            char buf[count], * i;
+            int buf_index = 0;
+            int *region_ptr, region_index;
+            i = buf;
+            while(shared_region) {
+                memcpy(i, shared_region->vbase, shared_region->size);
+                i += shared_region->size;
+                shared_region = shared_region->next; 
+            }
+            dprintf(0, "buf created, buf_index is %d and region_index is %d\n", buf_index, region_index);
+
+			/*char buf[seL4_MsgMaxLength];*/
+			/*for(int i = 1; i < num_args; i++) {*/
+				/*buf[i-1] = seL4_GetMR(i);*/
+			/*}*/
+            int ret;
+            ret = serial_send(serial, buf, count);
+            seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
+            seL4_SetMR(0, ret + 1);
+            seL4_Send(reply_cap, reply);
 			break;
 		}
 
@@ -440,7 +458,6 @@ static void _sos_init(seL4_CPtr* ipc_ep, seL4_CPtr* async_ep){
     /* Initialiase other system compenents here */
     _sos_ipc_init(ipc_ep, async_ep);
 
-    /* Map PHY memory to USER_VMEM */
 }
 
 static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge) {

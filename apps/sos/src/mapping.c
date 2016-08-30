@@ -169,9 +169,9 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 	}
 
     /* Map the user_phy_addr to sos */
-    dprintf(0, "MAPPING paddr 0x%x -> 0x%x \n", ftable[frame].p_addr, VMEM_START + ftable[frame].p_addr);
+    /*dprintf(0, "MAPPING paddr 0x%x -> 0x%x \n", ftable[frame].p_addr, VMEM_START + ftable[frame].p_addr);*/
     map_page(ftable[frame].kern_cptr, seL4_CapInitThreadPD, 
-            VMEM_START + ftable[frame].p_addr, 
+            VMEM_START + (ftable[frame].index << seL4_PageBits), 
             seL4_AllRights, seL4_ARM_Default_VMAttributes);
 	return err;
 }

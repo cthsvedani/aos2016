@@ -34,7 +34,7 @@ static void
 thread_block(void){
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 1);
     seL4_SetTag(tag);
-    seL4_SetMR(0, 2);
+    seL4_SetMR(0, 213);
     seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
 }
 
@@ -103,12 +103,12 @@ int main(void){
 
     do {
 	    printf("task:\tHello world, I'm\ttty_test!\n");
-		sos_sys_usleep(5000);
-		int64_t time = sos_sys_time_stamp();
-		printf("5 seconds later, it's %lld\n", time);
-		sos_sys_usleep(20000);
-		time = sos_sys_time_stamp();
-		printf("Now it's %lld\n", time);
+		/*sos_sys_usleep(5000);*/
+		/*int64_t time = sos_sys_time_stamp();*/
+		/*printf("5 seconds later, it's %lld\n", time);*/
+		/*sos_sys_usleep(20000);*/
+		/*time = sos_sys_time_stamp();*/
+		/*printf("Now it's %lld\n", time);*/
         thread_block();
     } while(1);
 
