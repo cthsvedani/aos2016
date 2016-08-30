@@ -18,6 +18,9 @@
 #include <sel4/sel4.h>
 
 /* System calls for SOS */
+#define SOS_SYS_SLEEP 126
+#define SOS_SYS_TIMESTAMP 127
+#define SOS_SYS_WRITE 114
 
 /* Endpoint for talking to SOS */
 #define SOS_IPC_EP_CAP     (0x1)

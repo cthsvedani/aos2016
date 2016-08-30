@@ -18,9 +18,6 @@
 #include <sel4/sel4.h>
 
 #define SYSCALL_ENDPOINT_SLOT    1
-#define SOS_SYS_SLEEP 126
-#define SOS_SYS_TIMESTAMP 127
-#define SOS_SYS_WRITE 1
 
 int sos_sys_open(const char *path, fmode_t mode) {
     assert(!"You need to implement this");
@@ -36,8 +33,8 @@ size_t sos_write(void *vData, size_t count) {
 	const char *realdata = vData;
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,3);
     seL4_SetMR(0, SOS_SYS_WRITE);
-    rpc_call_data(tag, vData, count + 1, SYSCALL_ENDPOINT_SLOT);
-    return count;
+    rpc_call_data(tag, vData, count, SYSCALL_ENDPOINT_SLOT);
+    return seL4_GetMR(0);
 }
 
 void sos_sys_usleep(int msec) {
@@ -58,5 +55,5 @@ int64_t sos_sys_time_stamp(void) {
 }
 
 int sos_sys_write(int file, const char *vData, size_t count) {
-    return count;
+    return 0;
 }

@@ -137,18 +137,23 @@ void free_region_list(region * head){
 		free(tmp);
 	}
 } 
+void * get_shared_buffer(region *regions);
+
 
 region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
+    //Reuse region structs to define our regions of memory
     region *head = malloc(sizeof(region));
     region *tail = head;
 
     while(len > 0) {
+        //check defined user regions
         if(!pt_ckptr(user_vaddr, len, user_pd)) {
             dprintf(0,"Invalid memory region\n");
             free_region_list(head);
             return NULL;
         }   
 
+        //get the sos_vaddr that corresponds to the user_vaddr
         seL4_Word sos_vaddr = get_user_translation(user_vaddr, user_pd);
         if(!sos_vaddr) {
             dprintf(0, "Mapping does not exist.\n");
@@ -156,14 +161,21 @@ region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * use
             return NULL;
         }
 
+        //this is the start address on this page
         tail->vbase = sos_vaddr + PAGE_OFFSET(user_vaddr);
+
+        //the length left on this page
         size_t page_len = PAGE_ALIGN(user_vaddr + (1 << seL4_PageBits)) - user_vaddr;
+
+        //we need more regions
         if( len > page_len ) {
             tail->size = page_len;
             len -= page_len;
             tail->next = malloc(sizeof(region));
+            //increment user_vaddr to find the next start of the page
             user_vaddr += tail->size;
             tail = tail->next;
+        //no more regions
         } else {
             tail->size = len;
             len = 0;
@@ -175,6 +187,7 @@ region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * use
     return head;
 }
 
+//get the kernel_vaddr representation of user_vaddr
 seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
     uint32_t dindex = VADDR_TO_PDINDEX(user_vaddr);
     uint32_t tindex = VADDR_TO_PTINDEX(user_vaddr);
@@ -185,9 +198,9 @@ seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
 int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
     region *start_region = find_region(user_pd, user_vaddr);
     region *end_region = find_region(user_pd, user_vaddr + len);
-/*//TODO CHECK FLAGS*/
+//TODO CHECK FLAGS
     if((start_region && end_region) && 
-        //same memory region
+        //the buffer should not be spanning multiple regions
         (start_region->vbase == end_region->vbase)){
         return 1;
     }

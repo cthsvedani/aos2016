@@ -45,6 +45,7 @@
 
 #include "vm/addrspace.h"
 #include <sos/rpc.h>
+#include <sos.h>
 
 /* This is the index where a clients syscall enpoint will
  * be stored in the clients cspace. */
@@ -89,15 +90,6 @@ struct {
 } tty_test_process;
 
 
-/*
- * A dummy starting syscall
- */
-#define SOS_SYSCALL0 0
-#define SOS_SYSCALL1 1
-#define SOS_SYSCALL2 2
-#define SOS_SYSCALL3 3
-#define SOS_SYSCALL4 4
-
 seL4_CPtr _sos_ipc_ep_cap;
 seL4_CPtr _sos_interrupt_ep_cap;
 
@@ -120,26 +112,11 @@ void handle_syscall(seL4_Word badge, int num_args) {
 
     /* Process system call */
     switch (syscall_number) {
-    case SOS_SYSCALL0:
-        dprintf(0, "syscall: thread made syscall 0!\n");
-
-        seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
-        seL4_SetMR(0, 0);
-        seL4_Send(reply_cap, reply);
-
-        break;
-
 	case SOS_SYS_WRITE:
 		{
             size_t count = seL4_GetMR(2);
             dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",
                    seL4_GetMR(1), count); 
-            if(num_args == 1) {
-                seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
-                seL4_SetMR(0, 1);
-                seL4_Send(reply_cap, reply);
-                break;
-            }
 
             region *shared_region = get_shared_region(seL4_GetMR(1), count, 
                                                     tty_test_process.pd);
@@ -155,14 +132,10 @@ void handle_syscall(seL4_Word badge, int num_args) {
             }
             dprintf(0, "buf created, buf_index is %d and region_index is %d\n", buf_index, region_index);
 
-			/*char buf[seL4_MsgMaxLength];*/
-			/*for(int i = 1; i < num_args; i++) {*/
-				/*buf[i-1] = seL4_GetMR(i);*/
-			/*}*/
             int ret;
             ret = serial_send(serial, buf, count);
             seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
-            seL4_SetMR(0, ret + 1);
+            seL4_SetMR(0, ret);
             seL4_Send(reply_cap, reply);
 			break;
 		}

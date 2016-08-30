@@ -186,7 +186,7 @@ void bf_clr(bitfield_t* bf, int offset){
     bf->b[byte] &= ~bitmask;
     bf->available++;
 
-    debug_print(bf);
+    /*debug_print(bf);*/
 }
 
 int bf_get(const bitfield_t* bf, int offset){
