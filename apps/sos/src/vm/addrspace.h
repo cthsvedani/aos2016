@@ -62,5 +62,7 @@ int vm_fault(pageDirectory * pd,seL4_Word addr);
 region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
 seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd);
 int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
+void get_shared_buffer(region *shared_region, size_t count, char *buf);
+void free_shared_buffer(char * buf, size_t count);
 
 #endif

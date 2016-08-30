@@ -120,23 +120,19 @@ void handle_syscall(seL4_Word badge, int num_args) {
 
             region *shared_region = get_shared_region(seL4_GetMR(1), count, 
                                                     tty_test_process.pd);
-            dprintf(0, "shared_region_1 addr 0x%x, size %d \n", shared_region->vbase, shared_region->size);
-            char buf[count], * i;
-            int buf_index = 0;
-            int *region_ptr, region_index;
-            i = buf;
-            while(shared_region) {
-                memcpy(i, shared_region->vbase, shared_region->size);
-                i += shared_region->size;
-                shared_region = shared_region->next; 
-            }
-            dprintf(0, "buf created, buf_index is %d and region_index is %d\n", buf_index, region_index);
+            char buf[count];
+            get_shared_buffer(shared_region, count,buf);
+            dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",
+                   seL4_GetMR(1), count); 
 
             int ret;
             ret = serial_send(serial, buf, count);
+            dprintf(0, "ret is %d", ret);
             seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
             seL4_SetMR(0, ret);
             seL4_Send(reply_cap, reply);
+
+            /*free_shared_buffer(buf, count);*/
 			break;
 		}
 

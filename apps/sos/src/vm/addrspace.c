@@ -137,8 +137,34 @@ void free_region_list(region * head){
 		free(tmp);
 	}
 } 
-void * get_shared_buffer(region *regions);
+void get_shared_buffer(region *shared_region, size_t count, char *buf) {
+    dprintf(0, "shared_region_1 addr 0x%x, size %d \n", shared_region->vbase, shared_region->size);
+    int buffer_index = 0;
+    while(shared_region) {
+        memcpy(buf, (void *)shared_region->vbase, shared_region->size);
+        buffer_index += shared_region->size;
+        shared_region = shared_region->next; 
+    }
 
+    return buf;
+}
+
+void free_shared_buffer(char * buf, size_t count) {
+    for(int i = 0; i<count; i++) {
+        free(&(buf[i]));
+    }
+}
+
+//the regions struct is only maintained by kernel is thus trusted.
+void put_to_shared_region(region *shared_region, char *buf) {
+    char *page_start;
+    int buffer_index;
+    while(shared_region) {
+        page_start = shared_region->vbase;
+        memcpy(page_start, (void *)shared_region->vbase. shared_region->size);
+        shared_region = shared_region->next;
+    }
+}
 
 region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
     //Reuse region structs to define our regions of memory
