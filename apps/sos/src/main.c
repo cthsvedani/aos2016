@@ -28,6 +28,7 @@
 #include "ut_manager/ut.h"
 #include "vmem_layout.h"
 #include "mapping.h"
+#include "fdtable.h"
 
 #include "clock/clock.h"
 #include "timer.h"
@@ -42,10 +43,11 @@
 #include "frametable_tests.h"
 #include "syscall.h"
 
-
 #include "vm/addrspace.h"
 #include <sos/rpc.h>
 #include <sos.h>
+
+#define IO_BUFFER_LENGTH 8096
 
 /* This is the index where a clients syscall enpoint will
  * be stored in the clients cspace. */
@@ -84,6 +86,7 @@ struct {
 	pageDirectory * pd;
     seL4_CPtr ipc_buffer_cap;
 	uint32_t ipc_frame;
+	fdnode fdtable[MAX_FILES];
 	
     cspace_t *croot;
 
@@ -446,6 +449,19 @@ uint32_t timerid[2];
 /*
  * Main entry point - called by crt.
  */
+char serialbuffer[IO_BUFFER_LENGTH];
+int serialReadIndex;
+int serialWriteIndex;
+void serial_callback(struct serial * serial, char c){
+	if(serialWriteIndex != serialReadIndex){
+		serialbuffer[serialWriteIndex] = c;
+		serialWriteIndex++;
+		if(serialWriteIndex == IO_BUFFER_LENGTH){
+			serialWriteIndex = 0;	
+		}
+	}
+}
+
 int main(void) {
 
     dprintf(0, "\nSOS Starting...\n");
@@ -457,6 +473,7 @@ int main(void) {
 
     /* Initialise serial port */
     serial = serial_init();
+	serial_register_handler(serial, serial_callback);
 
     /* Initialise timers */
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));
@@ -474,3 +491,4 @@ int main(void) {
     /* Not reached */
     return 0;
 }
+

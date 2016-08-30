@@ -145,8 +145,6 @@ void get_shared_buffer(region *shared_region, size_t count, char *buf) {
         buffer_index += shared_region->size;
         shared_region = shared_region->next; 
     }
-
-    return buf;
 }
 
 void free_shared_buffer(char * buf, size_t count) {
@@ -161,7 +159,7 @@ void put_to_shared_region(region *shared_region, char *buf) {
     int buffer_index;
     while(shared_region) {
         page_start = shared_region->vbase;
-        memcpy(page_start, (void *)shared_region->vbase. shared_region->size);
+        memcpy(page_start, (void *)shared_region->vbase, shared_region->size);
         shared_region = shared_region->next;
     }
 }
