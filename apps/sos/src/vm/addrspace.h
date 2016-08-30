@@ -15,6 +15,10 @@
 #define STACK_BOTTOM	 0x60000000
 #define	HEAP_BUFFER		 0x00010000
 
+#define PAGE_OFFSET(a) ((a) & ((1 << seL4_PageBits) - 1))
+#define PAGE_ALIGN(a) ((a) & ~((1 << seL4_PageBits) -1))
+
+
 
 #define VM_FAULT_READ   0x1
 #define VM_FAULT_WRITE  0x2
@@ -54,7 +58,9 @@ region * find_region(pageDirectory * pd, seL4_Word vAddr);
 void free_region_list(region* head);
 
 int vm_fault(pageDirectory * pd,seL4_Word addr);
-seL4_Word get_translation(seL4_Word addr, seL4_Word faulttype, pageDirectory *pd);
-int PT_ckflags(seL4_Word faulttype, seL4_Word addr, pageDirectory *pd);
+
+region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
+seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd);
+int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
 
 #endif
