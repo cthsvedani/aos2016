@@ -179,7 +179,7 @@ seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
     uint32_t dindex = VADDR_TO_PDINDEX(user_vaddr);
     uint32_t tindex = VADDR_TO_PTINDEX(user_vaddr);
     uint32_t index = user_pd->pTables[dindex]->frameIndex[tindex];
-    return index;
+    return ftable[index].p_addr;
 }
 
 int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
