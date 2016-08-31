@@ -83,6 +83,8 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
             memcpy(buff + buffer_left, serialbuffer, offset - buffer_left); 
 		}
         buffLen -= offset;
+        serialReadIndex += len;
+		newlineIndex = -1;
         finish_func = NULL;
         return_reply(offset);
     } 
