@@ -10,6 +10,7 @@
 int serial_read(struct serial* serial, char* buff, int len, seL4_CPtr reply, region* shared_region);
 void read_finish(char* buff, int len, seL4_CPtr reply, region *shared_region);
 
+int serial_write(struct serial* serial, char* buff, int len);
 void serial_callback(struct serial * serial, char c);
 
 #endif

@@ -63,4 +63,5 @@ int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
 void get_shared_buffer(region *shared_region, size_t count, char *buf);
 void free_shared_buffer(char * buf, size_t count);
 
+void put_to_shared_region(region *shared_region, char *buf);
 #endif

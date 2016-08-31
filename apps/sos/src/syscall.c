@@ -47,3 +47,20 @@ void sos_wake(int* id, void* data){
 	seL4_Send(reply, tag);
 	cspace_free_slot(cur_cspace, reply);
 }
+
+int sos_open(char* name, fdnode* fdtable, fd_mode mode){
+	int fd = open_device(name, fdtable, mode);
+	dprintf(0, "fd found is %d\n", fd);
+	if(fd){
+		return fd;
+	}
+	else return -1;
+	//We don't have a filesystem yet, so we only pass the string to the device list.
+}
+
+void sos_close(fdnode* fdtable, int index){
+	if(index < 0 || index > MAX_FILES) return; //The index doesn't make sense, ignore it.
+	if(fdtable[index].file != NULL){
+		close_device(fdtable, index); //We don't have a file system, Only care about devices.
+	}
+}

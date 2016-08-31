@@ -6,7 +6,7 @@
 #include <sos.h>
 #include <sos/rpc.h>
 #include "vm/addrspace.h"
-#include "fdtable.c"
+#include "fdtable.h"
 
 #include <sel4/sel4.h>
 typedef int (*finish_read_t)(char* buffer, int len, seL4_CPtr reply, region* shared_region);
