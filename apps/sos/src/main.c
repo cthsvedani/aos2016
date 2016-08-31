@@ -132,8 +132,6 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		{
             seL4_Word user_addr = seL4_GetMR(1);
             size_t count = seL4_GetMR(2);
-            /*dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",*/
-                   /*seL4_GetMR(1), count); */
 
             shared_region *shared_region = get_shared_region(user_addr, count, 
                                                     tty_test_process.pd);
@@ -161,12 +159,14 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			seL4_Word user_addr = seL4_GetMR(1);
 			size_t count = seL4_GetMR(2);
 			region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd);
-			char buf[count];
+			char *buf = malloc(count*sizeof(char));
 			get_shared_buffer(shared_region, count, buf);
+			dprintf(0,"Attempting Open\n");
 			int ret = sos_open(buf, tty_test_process.fdtable, seL4_GetMR(3));
 			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0, ret);
 			seL4_Send(reply_cap, reply);
+			free(buf);
 			break;
 		}
 	case SOS_SYS_CLOSE:
@@ -176,8 +176,8 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0,0);
 			seL4_Send(reply_cap,reply);
+			break;
 		}
-		break;
 	case SOS_SYS_USLEEP:
 		{
 			if(sos_sleep(seL4_GetMR(1), reply_cap)){
