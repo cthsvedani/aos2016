@@ -125,13 +125,21 @@ void handle_syscall(seL4_Word badge, int num_args) {
                                                     tty_test_process.pd);
             char *buf = malloc(sizeof(char) * count);
             get_shared_buffer(shared_region, count, buf);
-            int ret = serial_read(serial, buf, count, reply_cap, shared_region);
+   
+			int file = seL4_GetMR(1);
+			if(file >= 0 && file <= MAX_FILES){
+				fdnode* fdtable = tty_test_process.fdtable;
+				fdDevice* dev = (fdDevice*)fdtable[file].file;
+		 	    if(fdtable[file].file != NULL){
+					dev->read(dev->device, buf, count, reply_cap, shared_region);
+				} 
+			}
             break;
         }
 	case SOS_SYS_WRITE:
 		{
-            seL4_Word user_addr = seL4_GetMR(1);
-            size_t count = seL4_GetMR(2);
+            seL4_Word user_addr = seL4_GetMR(2);
+            size_t count = seL4_GetMR(3);
 
             shared_region *shared_region = get_shared_region(user_addr, count, 
                                                     tty_test_process.pd);
@@ -140,8 +148,15 @@ void handle_syscall(seL4_Word badge, int num_args) {
             /*dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",*/
                    /*seL4_GetMR(1), count); */
 
-            int ret;
-            ret = serial_send(serial, buf, count);
+			int ret = -1;
+			int file = seL4_GetMR(1);
+			if(file >= 0 && file <= MAX_FILES){
+				fdnode* fdtable = tty_test_process.fdtable;
+				fdDevice* dev = (fdDevice*)fdtable[file].file;
+		 	    if(fdtable[file].file != NULL){
+					ret = dev->write(dev->device, buf, count);
+				} 
+			}
 
             //need to free whole mem
             free(buf);

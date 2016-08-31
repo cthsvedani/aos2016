@@ -42,12 +42,17 @@ size_t sos_read(void *vData, size_t count) {
     return seL4_GetMR(0);
 }
 
-size_t sos_write(void *vData, size_t count) {
-	const char *realdata = vData;
-    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,3);
+int sos_sys_write(int file, const char *buf, size_t nbyte){
+    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,4);
     seL4_SetMR(0, SOS_SYS_WRITE);
-    rpc_call_data(tag, vData, count, SYSCALL_ENDPOINT_SLOT);
+	seL4_SetMR(1, file);
+	seL4_SetMR(2, buf);
+	seL4_SetMR(3, nbyte);
+	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
     return seL4_GetMR(0);
+}
+size_t sos_write(void *vData, size_t count) {
+	return 0;
 }
 
 void sos_sys_usleep(int msec) {
@@ -67,9 +72,6 @@ int64_t sos_sys_time_stamp(void) {
 	return time;
 }
 
-int sos_sys_write(int file, const char *vData, size_t count) {
-    return 0;
-}
 
 int sos_sys_close(int file){
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,2);

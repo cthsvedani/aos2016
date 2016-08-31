@@ -42,8 +42,7 @@ void unregister_device(char* name){
 
 int open_device(char* name, fdnode* fdtable, fd_mode mode){
 	for(int i = 0; i < MAX_IO_DEVICES; i++){
-		dprintf(0, "Name is .%s... Device 0 name is .%s.\n", name ,fdDevices[0].name);
-		if(fdDevices[i].name != NULL && strcmp(name, fdDevices[i].name)){
+		if(fdDevices[i].name != NULL && !strcmp(name, fdDevices[i].name)){
 			if(mode == fdReadOnly || mode == fdReadWrite){
 				if(fdDevices[i].readers == fdDevices[i].maxReaders){
 					dprintf(0,"Read Open attempted on full device %x\n", i);
