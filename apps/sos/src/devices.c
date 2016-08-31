@@ -46,7 +46,9 @@ int serial_read(struct serial* serial, char* buff, int len, seL4_CPtr reply, sha
 }
 
 int serial_write(struct serial* serial, char* buff, int len){
-	return 0;
+    int ret;
+    ret = serial_send(serial, buff, len);
+	return ret;
 }
 
 void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_region){

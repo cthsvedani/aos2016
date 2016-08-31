@@ -146,7 +146,7 @@ void free_shared_region_list(shared_region * head){
 	}
 } 
 void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
-    /*dprintf(0, "shared_region_1 addr 0x%x, size %d \n", shared_region->vbase, shared_region->size);*/
+    dprintf(0, "shared_region_1 addr 0x%x, size %d \n", shared_region->vbase, shared_region->size);
     int buffer_index = 0;
     while(shared_region) {
         memcpy(buf, (void *)shared_region->vbase, shared_region->size);
