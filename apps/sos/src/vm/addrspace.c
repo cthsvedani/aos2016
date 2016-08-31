@@ -149,7 +149,7 @@ void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
     /*dprintf(0, "shared_region_1 addr 0x%x, size %d \n", shared_region->vbase, shared_region->size);*/
     int buffer_index = 0;
     while(shared_region) {
-        memcpy(buf, (void *)shared_region->vbase, shared_region->size);
+        memcpy(buf + buffer_index, (void *)shared_region->vbase, shared_region->size);
         buffer_index += shared_region->size;
         shared_region = shared_region->next; 
     }
@@ -165,10 +165,13 @@ void free_shared_buffer(char * buf, size_t count) {
 void put_to_shared_region(shared_region *shared_region, char *buf) {
     int buffer_index = 0;
     while(shared_region) {
+        dprintf(0, "region vbase is %x\n", shared_region->vbase);
+        dprintf(0, "kernel buf is %x\n", &buf);
         memcpy((void *)shared_region->vbase, buf + buffer_index, shared_region->size);
-        shared_region = shared_region->next;
         buffer_index += shared_region->size;
+        shared_region = shared_region->next;
     }
+    dprintf(0, "put_to_shared exiting \n");
 }
 
 shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
