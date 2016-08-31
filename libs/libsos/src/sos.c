@@ -31,15 +31,16 @@ int sos_sys_open(const char *path, fmode_t mode) {
 }
 
 int sos_sys_read(int file, char *buf, size_t nbyte) {
-    int ret;
-    ret = sos_read(buf, nbyte);
-    return ret;
+    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,4);
+    seL4_SetMR(0, SOS_SYS_READ);
+	seL4_SetMR(1, file);
+	seL4_SetMR(2, buf);
+	seL4_SetMR(3, nbyte);
+	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+    return seL4_GetMR(0);
 }
 size_t sos_read(void *vData, size_t count) {
-    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,3);
-    seL4_SetMR(0, SOS_SYS_READ);
-    rpc_call_data(tag, vData, count, SYSCALL_ENDPOINT_SLOT);
-    return seL4_GetMR(0);
+    return sos_sys_read(3, vData, count);
 }
 
 int sos_sys_write(int file, const char *buf, size_t nbyte){
@@ -52,7 +53,10 @@ int sos_sys_write(int file, const char *buf, size_t nbyte){
     return seL4_GetMR(0);
 }
 size_t sos_write(void *vData, size_t count) {
-	return 0;
+	char* buff = malloc(sizeof(char)*count);
+	memcpy(buff, vData, count);
+	size_t ret = sos_sys_write(3, buff, count);
+	return ret;
 }
 
 void sos_sys_usleep(int msec) {

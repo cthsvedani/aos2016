@@ -103,9 +103,10 @@ int main(void){
 
     do {
 		int f = sos_sys_open("console", FM_READWRITE);
-		const char* c = "Hello World!\n";
-		int len = strlen(c);
-		sos_sys_write(f, c, len); 
+		printf("Hello World!\n");
+		char buff[2048];
+		sos_sys_read(f, buff, 2048);
+		printf("TTY got %s\n", buff); 
         thread_block();
     } while(1);
 
