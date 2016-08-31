@@ -117,38 +117,39 @@ void handle_syscall(seL4_Word badge, int num_args) {
     switch (syscall_number) {
     case SOS_SYS_READ:
         {
+            dprintf(0, "in sos_sys_read\n");
             seL4_Word user_addr = seL4_GetMR(1);
             size_t count = seL4_GetMR(2);
-            region *shared_region = get_shared_region(user_addr, count,
+            shared_region *shared_region = get_shared_region(user_addr, count,
                                                     tty_test_process.pd);
             char buf[count];
             get_shared_buffer(shared_region, count, buf);
             int ret = serial_read(serial, buf, count, reply_cap, shared_region);
-            dprintf(0, "ret is %d", ret);
-            put_to_shared_region(shared_region, buf);
-            seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 3);
-            seL4_SetMR(0, ret);
-            seL4_SetMR(1, user_addr);
-            seL4_Send(reply_cap, reply);
+            /*dprintf(0, "ret from serial is %d \n", ret);*/
+            /*put_to_shared_region(shared_region, buf);*/
+            /*seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 3);*/
+            /*seL4_SetMR(0, ret);*/
+            /*seL4_SetMR(1, user_addr);*/
+            /*seL4_Send(reply_cap, reply);*/
             break;
         }
 	case SOS_SYS_WRITE:
 		{
             seL4_Word user_addr = seL4_GetMR(1);
             size_t count = seL4_GetMR(2);
-            dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",
-                   seL4_GetMR(1), count); 
+            /*dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",*/
+                   /*seL4_GetMR(1), count); */
 
-            region *shared_region = get_shared_region(user_addr, count, 
+            shared_region *shared_region = get_shared_region(user_addr, count, 
                                                     tty_test_process.pd);
             char buf[count];
             get_shared_buffer(shared_region, count,buf);
-            dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",
-                   seL4_GetMR(1), count); 
+            /*dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",*/
+                   /*seL4_GetMR(1), count); */
 
             int ret;
             ret = serial_send(serial, buf, count);
-            dprintf(0, "ret is %d", ret);
+            /*dprintf(0, "ret is %d\n", ret);*/
             seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
             seL4_SetMR(0, ret);
             seL4_Send(reply_cap, reply);

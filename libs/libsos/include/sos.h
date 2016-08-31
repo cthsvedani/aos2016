@@ -78,6 +78,7 @@ int sos_sys_close(int file);
  */
 
 int sos_sys_read(int file, char *buf, size_t nbyte);
+size_t sos_read(void *vData, size_t count);
 /* Read from an open file, into "buf", max "nbyte" bytes.
  * Returns the number of bytes read.
  * Will block when reading from console and no input is presently

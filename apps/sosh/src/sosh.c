@@ -260,6 +260,13 @@ static sos_stat_t sbuf;
         /*{"time", second_time}, {"mtime", micro_time}, {"kill", kill} };*/
 
 int main(void) {
+    printf("\n[SOS Starting]\n");
+    char buf[10];
+    sos_read(buf, 10);
+    printf("%c, %c, %c, %c,%c, %c, %c, %c,%c, %c", 
+            buf[0], buf[1], buf[2], buf[3], buf[4],
+            buf[5], buf[6], buf[7], buf[8], buf[9]);
+    printf("\n[SOS Exiting]\n");
     return 0;
     /*char buf[BUF_SIZ];*/
     /*char *argv[MAX_ARGS];*/

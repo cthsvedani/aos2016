@@ -29,6 +29,14 @@ typedef struct region_t {
     struct region_t *next;
 } region;
 
+typedef struct shared_region_t {
+    seL4_Word user_addr;
+    seL4_Word vbase;
+    seL4_Word size;
+    seL4_Word flags;
+    struct region_t *next;
+} shared_region;
+
 typedef struct sos_PageTable{
 	uint32_t frameIndex[VM_PTABLE_LENGTH];
 }pageTable;
@@ -57,10 +65,11 @@ void free_region_list(region* head);
 
 int vm_fault(pageDirectory * pd,seL4_Word addr);
 
-region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
+shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
 seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd);
 int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
-void get_shared_buffer(region *shared_region, size_t count, char *buf);
+void get_shared_buffer(shared_region *shared_region, size_t count, char *buf);
 void free_shared_buffer(char * buf, size_t count);
+void put_to_shared_region(shared_region *shared_region, char *buf);
 
 #endif

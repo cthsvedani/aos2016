@@ -25,8 +25,15 @@ int sos_sys_open(const char *path, fmode_t mode) {
 }
 
 int sos_sys_read(int file, char *buf, size_t nbyte) {
-    assert(!"You need to implement this");
-    return -1;
+    int ret;
+    ret = sos_read(buf, nbyte);
+    return ret;
+}
+size_t sos_read(void *vData, size_t count) {
+    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,3);
+    seL4_SetMR(0, SOS_SYS_READ);
+    rpc_call_data(tag, vData, count, SYSCALL_ENDPOINT_SLOT);
+    return seL4_GetMR(0);
 }
 
 size_t sos_write(void *vData, size_t count) {
