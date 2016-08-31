@@ -283,7 +283,7 @@ int main(void) {
         found = 0;
 
         while (!found && !done) {
-            [> Make sure to flush so anything is visible while waiting for user input <]
+            /*[> Make sure to flush so anything is visible while waiting for user input <]*/
             fflush(stdout);
             r = read(in, bp, BUF_SIZ - 1 + buf - bp);
             if (r < 0) {
@@ -291,18 +291,18 @@ int main(void) {
                 done = 1;
                 break;
             }
-            bp[r] = 0; [> terminate <]
+            bp[r] = 0; //[> terminate <]
             for (p = bp; p < bp + r; p++) {
-                if (*p == '\03') { [> ^C <]
+                if (*p == '\03') { //[> ^C <]
                     printf("^C\n");
                     p = buf;
                     new = 1;
                     break;
-                } else if (*p == '\04') { [> ^D <]
+                } else if (*p == '\04') { //[> ^D <]
                     p++;
                     found = 1;
                 } else if (*p == '\010' || *p == 127) {
-                    [> ^H and BS and DEL <]
+                    //[> ^H and BS and DEL <]
                     if (p > buf) {
                         printf("\010 \010");
                         p--;
@@ -310,7 +310,7 @@ int main(void) {
                     }
                     p--;
                     r--;
-                } else if (*p == '\n') { [> ^J <]
+                } else if (*p == '\n') { //[> ^J <]
                     printf("%c", *p);
                     *p = 0;
                     found = p > buf;
@@ -335,12 +335,12 @@ int main(void) {
         p = buf;
 
         while (*p != '\0') {
-            [> Remove any leading spaces <]
+            /*[> Remove any leading spaces <]*/
             while (*p == ' ')
                 p++;
             if (*p == '\0')
                 break;
-            argv[argc++] = p; [> Start of the arg <]
+            argv[argc++] = p; //[> Start of the arg <]
             while (*p != ' ' && *p != '\0') {
                 p++;
             }
@@ -348,7 +348,7 @@ int main(void) {
             if (*p == '\0')
                 break;
 
-            [> Null out first space <]
+            /*[> Null out first space <]*/
             *p = '\0';
             p++;
         }
@@ -367,15 +367,15 @@ int main(void) {
             }
         }
 
-        [> Didn't find a command <]
+        /*[> Didn't find a command <]*/
         if (found == 0) {
-            [> They might try to exec a program <]
+            //[> They might try to exec a program <]
             if (sos_stat(argv[0], &sbuf) != 0) {
                 printf("Command \"%s\" not found\n", argv[0]);
             } else if (!(sbuf.st_fmode & FM_EXEC)) {
                 printf("File \"%s\" not executable\n", argv[0]);
             } else {
-                [> Execute the program <]
+                /*[> Execute the program <]*/
                 argc = 2;
                 argv[1] = argv[0];
                 argv[0] = "exec";
