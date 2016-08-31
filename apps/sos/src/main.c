@@ -77,6 +77,8 @@ const seL4_BootInfo* _boot_info;
 
 struct serial* serial;
 
+write_t out; //stdout
+void* outDev; //stdout device
 
 struct {
     seL4_Word tcb_addr;
@@ -127,7 +129,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
             get_shared_buffer(shared_region, count, buf);
    
 			int file = seL4_GetMR(1);
-			if(file >= 0 && file <= MAX_FILES){
+			if(file > 0 && file <= MAX_FILES){
 				fdnode* fdtable = tty_test_process.fdtable;
 				fdDevice* dev = (fdDevice*)fdtable[file].file;
 		 	    if(fdtable[file].file != NULL){
@@ -143,19 +145,31 @@ void handle_syscall(seL4_Word badge, int num_args) {
 
             shared_region *shared_region = get_shared_region(user_addr, count, 
                                                     tty_test_process.pd);
+			if(shared_region == NULL){
+				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
+				seL4_SetMR(0, 0);
+				seL4_Send(reply_cap, reply);
+				break;
+			}
             char *buf = malloc(sizeof(char) * count);
+			if(buf == NULL){
+				dprintf(0,"Malloc failed in sys_write\n");
+			}
             get_shared_buffer(shared_region, count, buf);
             /*dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",*/
                    /*seL4_GetMR(1), count); */
 
 			int ret = -1;
 			int file = seL4_GetMR(1);
-			if(file >= 0 && file <= MAX_FILES){
+			if(file > 0 && file <= MAX_FILES){
 				fdnode* fdtable = tty_test_process.fdtable;
 				fdDevice* dev = (fdDevice*)fdtable[file].file;
 		 	    if(fdtable[file].file != NULL){
 					ret = dev->write(dev->device, buf, count);
 				} 
+			}
+			else if(file == 0){
+				out(outDev, buf, count);
 			}
 
             //need to free whole mem
@@ -165,8 +179,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
             seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
             seL4_SetMR(0, ret);
             seL4_Send(reply_cap, reply);
-
-            /*free_shared_buffer(buf, count);*/
+			free_shared_region_list(shared_region);
 			break;
 		}
 	case SOS_SYS_OPEN:
@@ -175,6 +188,9 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			size_t count = seL4_GetMR(2);
 			region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd);
 			char *buf = malloc(count*sizeof(char));
+			if(buf == NULL){
+				dprintf(0,"Malloc failed in sys_open\n");
+			}
 			get_shared_buffer(shared_region, count, buf);
 			dprintf(0,"Attempting Open\n");
 			int ret = sos_open(buf, tty_test_process.fdtable, seL4_GetMR(3));
@@ -518,6 +534,9 @@ int main(void) {
 	serial_register_handler(serial, serial_callback);
 
 	register_device(serial, "console", (read_t)serial_read, 1, (write_t)serial_write, -1);	
+
+	out = fdDevices[0].write;
+	outDev = fdDevices[0].device;
 
     /* Initialise timers */
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));

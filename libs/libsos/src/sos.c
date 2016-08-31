@@ -53,9 +53,7 @@ int sos_sys_write(int file, const char *buf, size_t nbyte){
     return seL4_GetMR(0);
 }
 size_t sos_write(void *vData, size_t count) {
-	char* buff = malloc(sizeof(char)*count);
-	memcpy(buff, vData, count);
-	size_t ret = sos_sys_write(3, buff, count);
+	size_t ret = sos_sys_write(0, vData, count);
 	return ret;
 }
 
@@ -82,5 +80,39 @@ int sos_sys_close(int file){
 	seL4_SetMR(0, SOS_SYS_CLOSE);
 	seL4_SetMR(1, file);
 	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+	return 0;
+}
+
+int sos_getdirent(int pos, char *name, size_t nbyte){
+	printf("system call not implemented.\n");
+	return 0;
+}
+
+int sos_stat(const char *path, sos_stat_t *buf){
+	printf("system call not implemented.\n");
+	return 0;
+}
+
+pid_t sos_process_create(const char *path){
+	printf("system call not implemented.\n");
+	return 0;
+}
+
+int sos_process_delete(pid_t pid){
+	printf("system call not implemented.\n");
+	return 0;
+}
+
+pid_t sos_my_id(void){
+	printf("system call not implemented.\n");
+	return 0;
+}
+
+int sos_process_status(sos_process_t *processes, unsigned max){
+	printf("system call not implemented.\n");
+	return 0;
+}
+pid_t sos_process_wait(pid_t pid){
+	printf("system call not implemented.\n");
 	return 0;
 }

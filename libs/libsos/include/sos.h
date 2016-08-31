@@ -36,8 +36,9 @@
 #define N_NAME 32
 
 /* file modes */
-#define FM_READONLY 0
-#define FM_WRITEONLY 1
+#define FM_READ 0
+#define FM_WRITE 1
+#define FM_EXEC 2
 #define FM_READWRITE 2
 typedef int fmode_t;
 

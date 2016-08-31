@@ -147,6 +147,7 @@ void free_shared_region_list(shared_region * head){
 } 
 void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
     dprintf(0, "shared_region_1 addr 0x%x, size %d \n", shared_region->vbase, shared_region->size);
+    dprintf(0, "shared_region_1 uaddr 0x%x, size %d \n", shared_region->user_addr, shared_region->size);
     int buffer_index = 0;
     while(shared_region) {
         memcpy(buf + buffer_index, (void *)shared_region->vbase, shared_region->size);
@@ -155,11 +156,6 @@ void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
     }
 }
 
-void free_shared_buffer(char * buf, size_t count) {
-    for(int i = 0; i<count; i++) {
-        free(&(buf[i]));
-    }
-}
 
 //the regions struct is only maintained by kernel is thus trusted.
 void put_to_shared_region(shared_region *shared_region, char *buf) {
@@ -177,8 +173,16 @@ void put_to_shared_region(shared_region *shared_region, char *buf) {
 shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
     //Reuse region structs to define our regions of memory
     shared_region *head = malloc(sizeof(shared_region));
+	if(head == NULL){
+		dprintf(0,"Malloc failed\n");
+		return NULL;
+	}
     shared_region *tail = head;
     head->user_addr = user_vaddr;
+	if(len == 0){
+		free(head);
+		return NULL;
+	}
 
     while(len > 0) {
         //check defined user regions
@@ -227,6 +231,7 @@ seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
     uint32_t dindex = VADDR_TO_PDINDEX(user_vaddr);
     uint32_t tindex = VADDR_TO_PTINDEX(user_vaddr);
     uint32_t index = user_pd->pTables[dindex]->frameIndex[tindex];
+	dprintf(0,"Translated 0x%x to 0x%x\n", user_vaddr, VMEM_START + (ftable[index].index << seL4_PageBits));
     return VMEM_START + (ftable[index].index << seL4_PageBits);
 }
 
