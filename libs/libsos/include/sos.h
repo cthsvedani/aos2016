@@ -18,6 +18,9 @@
 #include <sel4/sel4.h>
 
 /* System calls for SOS */
+#define SOS_SYS_OPEN 2
+#define SOS_SYS_CLOSE 3
+
 #define SOS_SYS_SLEEP 126
 #define SOS_SYS_TIMESTAMP 127
 #define SOS_SYS_WRITE 114
@@ -33,9 +36,9 @@
 #define N_NAME 32
 
 /* file modes */
-#define FM_EXEC  1
-#define FM_WRITE 2
-#define FM_READ  4
+#define FM_READONLY 0
+#define FM_WRITEONLY 1
+#define FM_READWRITE 2
 typedef int fmode_t;
 
 /* stat file types */

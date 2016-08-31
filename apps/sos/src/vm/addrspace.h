@@ -34,7 +34,7 @@ typedef struct shared_region_t {
     seL4_Word vbase;
     seL4_Word size;
     seL4_Word flags;
-    struct region_t *next;
+    struct shared_region_t *next;
 } shared_region;
 
 typedef struct sos_PageTable{
@@ -62,6 +62,7 @@ region * new_region(pageDirectory * pd, seL4_Word start,
 region * find_region(pageDirectory * pd, seL4_Word vAddr);
 
 void free_region_list(region* head);
+void free_shared_region_list(shared_region * head);
 
 int vm_fault(pageDirectory * pd,seL4_Word addr);
 

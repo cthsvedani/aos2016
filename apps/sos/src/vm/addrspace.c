@@ -137,6 +137,14 @@ void free_region_list(region * head){
 		free(tmp);
 	}
 } 
+
+void free_shared_region_list(shared_region * head){
+	while(head){
+		shared_region * tmp = head;
+		head = head->next;
+		free(tmp);
+	}
+} 
 void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
     /*dprintf(0, "shared_region_1 addr 0x%x, size %d \n", shared_region->vbase, shared_region->size);*/
     int buffer_index = 0;
@@ -173,7 +181,7 @@ shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirector
         //check defined user regions
         if(!pt_ckptr(user_vaddr, len, user_pd)) {
             dprintf(0,"Invalid memory region\n");
-            free_region_list(head);
+            free_shared_region_list(head);
             return NULL;
         }   
 
@@ -181,7 +189,7 @@ shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirector
         seL4_Word sos_vaddr = get_user_translation(user_vaddr, user_pd);
         if(!sos_vaddr) {
             dprintf(0, "Mapping does not exist.\n");
-            free_region_list(head);
+            free_shared_region_list(head);
             return NULL;
         }
 

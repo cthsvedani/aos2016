@@ -102,6 +102,10 @@ pt_test( void )
 int main(void){
 
     do {
+		int f = sos_sys_open("console", FM_READWRITE);
+		sos_sys_close(f);
+		f = sos_sys_open("console", FM_READWRITE);
+		printf("Opened console with fd %d\n", f); 
 	    printf("task:\tHello world, I'm\ttty_test!\n");
         thread_block();
     } while(1);

@@ -3,9 +3,11 @@
 
 #include "serial/serial.h"
 #include "sel4/types.h"
+#include "vm/addrspace.h"
 
 #define MAX_FILES 32
 #define MAX_IO_DEVICES 32
+#define DEVNAME_LEN 1024
 
 typedef enum {
 	fdDev = 0,
@@ -19,7 +21,7 @@ typedef enum{
 } fd_mode;
 
 
-typedef int (*read_t)(void* device, char* buffer, int len, seL4_CPtr reply);
+typedef int (*read_t)(void* device, char* buffer, int len, seL4_CPtr reply, region * shared_region);
 typedef int (*write_t)(void* device, char* buffer, int len);
 
 typedef struct fddev{
@@ -36,7 +38,7 @@ fdDevice fdDevices[MAX_IO_DEVICES];
 typedef struct {
 	fd_mode permissions;
 	fd_type type;
-	seL4_Word * file;			
+	seL4_Word file;			
 } fdnode;
 
 void register_device(void* newDev, char* str, read_t read, int maxReaders, write_t write, int maxWriters);

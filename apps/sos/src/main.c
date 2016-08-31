@@ -43,6 +43,7 @@
 #include "frametable.h"
 #include "frametable_tests.h"
 #include "syscall.h"
+#include "devices.h"
 
 #include "vm/addrspace.h"
 #include <sos/rpc.h>
@@ -157,7 +158,28 @@ void handle_syscall(seL4_Word badge, int num_args) {
             /*free_shared_buffer(buf, count);*/
 			break;
 		}
-
+	case SOS_SYS_OPEN:
+		{
+			seL4_Word user_addr = seL4_GetMR(1);
+			size_t count = seL4_GetMR(2);
+			region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd);
+			char buf[count];
+			get_shared_buffer(shared_region, count, buf);
+			int ret = sos_open(buf, tty_test_process.fdtable, seL4_GetMR(3));
+			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+			seL4_SetMR(0, ret);
+			seL4_Send(reply_cap, reply);
+			break;
+		}
+	case SOS_SYS_CLOSE:
+		{
+			int index = seL4_GetMR(0);
+			sos_close(tty_test_process.fdtable, index);
+			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+			seL4_SetMR(0,0);
+			seL4_Send(reply_cap,reply);
+		}
+		break;
 	case SOS_SYS_USLEEP:
 		{
 			if(sos_sleep(seL4_GetMR(1), reply_cap)){
@@ -481,6 +503,8 @@ int main(void) {
     /* Initialise serial port */
     serial = serial_init();
 	serial_register_handler(serial, serial_callback);
+
+	register_device(serial, "console", (read_t)serial_read, 1, (write_t)serial_write, -1);	
 
     /* Initialise timers */
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));

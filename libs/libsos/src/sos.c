@@ -20,8 +20,14 @@
 #define SYSCALL_ENDPOINT_SLOT    1
 
 int sos_sys_open(const char *path, fmode_t mode) {
-    assert(!"You need to implement this");
-    return -1;
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,4);
+	int count = strlen(path);
+	seL4_SetMR(0, SOS_SYS_OPEN);
+	seL4_SetMR(1, path);
+	seL4_SetMR(2, count);
+	seL4_SetMR(3, mode);
+	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+	return seL4_GetMR(0);
 }
 
 int sos_sys_read(int file, char *buf, size_t nbyte) {
@@ -63,4 +69,12 @@ int64_t sos_sys_time_stamp(void) {
 
 int sos_sys_write(int file, const char *vData, size_t count) {
     return 0;
+}
+
+int sos_sys_close(int file){
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,2);
+	seL4_SetMR(0, SOS_SYS_CLOSE);
+	seL4_SetMR(1, file);
+	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+	return 0;
 }
