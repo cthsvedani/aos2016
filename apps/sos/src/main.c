@@ -119,8 +119,8 @@ void handle_syscall(seL4_Word badge, int num_args) {
     case SOS_SYS_READ:
         {
             dprintf(0, "in sos_sys_read\n");
-            seL4_Word user_addr = seL4_GetMR(1);
-            size_t count = seL4_GetMR(2);
+            seL4_Word user_addr = seL4_GetMR(2);
+            size_t count = seL4_GetMR(3);
             shared_region *shared_region = get_shared_region(user_addr, count,
                                                     tty_test_process.pd);
             char *buf = malloc(sizeof(char) * count);
