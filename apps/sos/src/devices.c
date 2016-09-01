@@ -8,7 +8,7 @@
 #include "vm/addrspace.h"
 #include "fdtable.h"
 
-#define verbose 5
+#define verbose 0
 #include <sys/debug.h>
 #include <sys/panic.h>
 #include <sel4/sel4.h>
@@ -58,7 +58,7 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
         return;
     }
 
-	if(buffLen > len){
+	if(buffLen >= len){
 		if(serialReadIndex < serialWriteIndex){
 			memcpy(buff, serialbuffer + serialReadIndex, len);
         }else{
@@ -81,6 +81,7 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
             offset = (newlineIndex - serialReadIndex) + 1;
 			memcpy(buff, serialbuffer + serialReadIndex, offset);
             dprintf(0, "calculating offset newlineindex > serial index\n");
+            dprintf(0, "newlineindex %d, serialreadindex %d, offset %d\n", newlineIndex, serialReadIndex, offset);
 		} else {
             int buffer_left = IO_BUFFER_LENGTH - serialReadIndex;
             offset = buffer_left + newlineIndex;
