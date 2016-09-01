@@ -29,7 +29,7 @@
 
 static int in;
 static sos_stat_t sbuf;
-int test_buffers(int console_fd);
+//int test_buffers(int console_fd);
 
 static void prstat(const char *name) {
     // print out stat buf 
@@ -265,6 +265,7 @@ int main(void) {
     char *argv[MAX_ARGS];
     int i, r, done, found, new, argc;
     char *bp, *p;
+    printf("[SOS Starting]\n");
 
     in = open("console", O_RDONLY);
     assert(in >= 0);
@@ -275,7 +276,7 @@ int main(void) {
 
     printf("[SOS Starting]\n");
 
-	test_buffers(3);
+//	test_buffers(3);
 
     while (!done) {
         if (new) {
@@ -288,6 +289,7 @@ int main(void) {
             /*[> Make sure to flush so anything is visible while waiting for user input <]*/
             fflush(stdout);
             r = read(in, bp, BUF_SIZ - 1 + buf - bp);
+            printf("read newline");
             if (r < 0) {
                 printf("Console read failed!\n");
                 done = 1;
@@ -384,51 +386,52 @@ int main(void) {
                 exec(argc, argv);
             }
         }
+    }
 }
 #define SMALL_BUF_SZ 2
-
+/*
    char test_str[] = "Basic test string for read/write";
    char small_buf[SMALL_BUF_SZ];
 
-   int test_buffers(int console_fd) {
-       /* test a small string from the code segment */
-       int result = sos_sys_write(console_fd, test_str, strlen(test_str));
-       assert(result == strlen(test_str));
+int test_buffers(int console_fd) {
+   //test a small string from the code segment
+   int result = sos_sys_write(console_fd, test_str, strlen(test_str));
+   assert(result == strlen(test_str));
 
-       /* test reading to a small buffer */
-       result = sos_sys_read(console_fd, small_buf, SMALL_BUF_SZ);
-       /* make sure you type in at least SMALL_BUF_SZ */
-       assert(result == SMALL_BUF_SZ);
+   // test reading to a small buffer
+   result = sos_sys_read(console_fd, small_buf, SMALL_BUF_SZ);
+   // make sure you type in at least SMALL_BUF_SZ
+   assert(result == SMALL_BUF_SZ);
 
-       /* test a reading into a large on-stack buffer */
-       char stack_buf[BUF_SIZ];
-       /* for this test you'll need to paste a lot of data into 
-          the console, without newlines */
-       result = sos_sys_read(console_fd, &stack_buf, BUF_SIZ);
-       assert(result == BUF_SIZ);
+   // test a reading into a large on-stack buffer
+   char stack_buf[BUF_SIZ];
+   // for this test you'll need to paste a lot of data into 
+   //the console, without newlines
+   result = sos_sys_read(console_fd, &stack_buf, BUF_SIZ);
+   assert(result == BUF_SIZ);
 
-       result = sos_sys_write(console_fd, &stack_buf, BUF_SIZ);
-       assert(result == BUF_SIZ);
+   result = sos_sys_write(console_fd, &stack_buf, BUF_SIZ);
+   assert(result == BUF_SIZ);
 
-       /* this call to malloc should trigger an sbrk */
-       char *heap_buf = malloc(BUF_SIZ);
-       assert(heap_buf != NULL);
+   //this call to malloc should trigger an sbrk
+   char *heap_buf = malloc(BUF_SIZ);
+   assert(heap_buf != NULL);
 
-       /* for this test you'll need to paste a lot of data into 
-          the console, without newlines */
-       result = sos_sys_read(console_fd, &heap_buf, BUF_SIZ);
-       assert(result == BUF_SIZ);
+   // for this test you'll need to paste a lot of data into 
+   //   the console, without newlines
+   result = sos_sys_read(console_fd, &heap_buf, BUF_SIZ);
+   assert(result == BUF_SIZ);
 
-       result = sos_sys_write(console_fd, &heap_buf, BUF_SIZ);
-       assert(result == BUF_SIZ);
+   result = sos_sys_write(console_fd, &heap_buf, BUF_SIZ);
+   assert(result == BUF_SIZ);
 
-       /* try sleeping */
-       for (int i = 0; i < 5; i++) {
-           time_t prev_seconds = time(NULL);
-           msleep(1);
-           time_t next_seconds = time(NULL);
-           assert(next_seconds > prev_seconds);
-           printf("Tick\n");
-       }
+   // try sleeping
+   for (int i = 0; i < 5; i++) {
+       time_t prev_seconds = time(NULL);
+       milli_sleep(1);
+       time_t next_seconds = time(NULL);
+       assert(next_seconds > prev_seconds);
+       printf("Tick\n");
    }
-
+}
+*/

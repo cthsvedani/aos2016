@@ -61,8 +61,7 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
 	if(buffLen > len){
 		if(serialReadIndex < serialWriteIndex){
 			memcpy(buff, serialbuffer + serialReadIndex, len);
-		}
-		else{
+        }else{
             int buffer_left = IO_BUFFER_LENGTH - serialReadIndex;
             memcpy(buff, serialbuffer + serialReadIndex, buffer_left);
             memcpy(buff + buffer_left, serialbuffer, len - buffer_left); 
@@ -71,24 +70,30 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
         serialReadIndex += len;
         serialReadIndex = serialReadIndex % IO_BUFFER_LENGTH;
         finish_func = NULL;
+        dprintf(0, "calling return reply with len %d\n", len);
         return_reply(len);
 		return;
 	} else if(newlineIndex != -1){
         int offset = 0;
-		if(newlineIndex > serialReadIndex){
-            offset = newlineIndex - serialReadIndex + 1;
+        //If they are equal len will 1
+		if(newlineIndex >= serialReadIndex){
+            //Make sure you use paranthesis when you do aritmetic!
+            offset = (newlineIndex - serialReadIndex) + 1;
 			memcpy(buff, serialbuffer + serialReadIndex, offset);
+            dprintf(0, "calculating offset newlineindex > serial index\n");
 		} else {
             int buffer_left = IO_BUFFER_LENGTH - serialReadIndex;
             offset = buffer_left + newlineIndex;
             memcpy(buff, serialbuffer + serialReadIndex, buffer_left);
             memcpy(buff + buffer_left, serialbuffer, offset - buffer_left + 1); 
+            dprintf(0, "calculating offset neslineindex !> serial index\n");
 		}
         buffLen -= offset;
         serialReadIndex += offset;
         serialReadIndex = serialReadIndex % IO_BUFFER_LENGTH;
 		newlineIndex = -1;
         finish_func = NULL;
+        dprintf(0, "calling return reply bufflen < len with len %d\n", offset);
         return_reply(offset);
 		return;
     } 
@@ -97,6 +102,7 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
 }
 
 void return_reply(int ret) {
+    dprintf(0, "replying with %d, containing finish_buff %s", ret, finish_buff);
     put_to_shared_region(finish_region, finish_buff);
     seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 3);
     seL4_SetMR(0, ret);
