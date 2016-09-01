@@ -152,6 +152,7 @@ void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
     while(shared_region) {
         dprintf(0, "shared_region%d addr 0x%x, size %d \n", i, shared_region->vbase, shared_region->size);
         dprintf(0, "shared_region%d uaddr 0x%x, size %d \n", i, shared_region->user_addr, shared_region->size);
+		dprintf(0, "kbuf = 0x%x\n", buf);
         memcpy(buf + buffer_index, (void *)shared_region->vbase, shared_region->size);
         buffer_index += shared_region->size;
         shared_region = shared_region->next; 
@@ -164,11 +165,11 @@ void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
 
 //the regions struct is only maintained by kernel is thus trusted.
 void put_to_shared_region(shared_region *shared_region, char *buf) {
-    int buffer_index = 0;
+    uint32_t buffer_index = 0;
     dprintf(0, "put_to_shared entered \n");
     while(shared_region) {
         dprintf(0, "region vbase is %x, with size %d\n", shared_region->vbase, shared_region->size);
-        dprintf(0, "kernel buf is %x\n", &buf);
+        dprintf(0, "kernel buf is %x\n", buf);
         memcpy((void *)shared_region->vbase, buf + buffer_index, shared_region->size);
         buffer_index += shared_region->size;
         shared_region = shared_region->next;
@@ -207,9 +208,9 @@ shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirector
             return NULL;
         }
 
-        //this is the start address on this page
+        //this is the start address  this page
         tail->vbase = sos_vaddr + PAGE_OFFSET(user_vaddr);
-
+		tail->user_addr = user_vaddr;
         //the length left on this page
         size_t page_len = PAGE_ALIGN(user_vaddr + (1 << seL4_PageBits)) - user_vaddr;
 
@@ -240,8 +241,11 @@ shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirector
 seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
     uint32_t dindex = VADDR_TO_PDINDEX(user_vaddr);
     uint32_t tindex = VADDR_TO_PTINDEX(user_vaddr);
+	//Check if the page is actually resident, if it isn't, fault it in.
+	if(user_pd->pTables[dindex] == NULL || user_pd->pTables[dindex]->frameIndex[tindex] == 0){
+		vm_fault(user_pd, user_vaddr);
+	}
     uint32_t index = user_pd->pTables[dindex]->frameIndex[tindex];
-    dprintf(0,"Phy_addr is 0x%x \n" ,(ftable[index].index << seL4_PageBits));
 	dprintf(0,"Translated 0x%x to 0x%x\n", user_vaddr, VMEM_START + (ftable[index].index << seL4_PageBits));
     return VMEM_START + (ftable[index].index << seL4_PageBits);
 }

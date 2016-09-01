@@ -56,7 +56,7 @@ int open_device(char* name, fdnode* fdtable, fd_mode mode){
 				}			
 			}
 			for(int j = 3; j < MAX_FILES; j++){
-				if(fdtable[j].file == NULL){
+				if(fdtable[j].file == 0){
 					fdtable[j].file = (seL4_Word)&fdDevices[i];
 					fdtable[j].type = fdDev;
 					fdtable[j].permissions = mode;
@@ -74,7 +74,7 @@ int open_device(char* name, fdnode* fdtable, fd_mode mode){
 
 void close_device(fdnode* fdtable, int index){
 		fdnode* fd = &(fdtable[index]);
-		fdDevice* device = fd->file;
+		fdDevice* device = (fdDevice*)fd->file;
 		fd->type = 0;
 		if(fd->permissions == fdReadOnly || fd->permissions == fdReadWrite) device->readers--;
 		if(fd->permissions == fdWriteOnly || fd->permissions == fdReadWrite) device->writers--;

@@ -132,7 +132,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			if(file > 0 && file <= MAX_FILES){
 				fdnode* fdtable = tty_test_process.fdtable;
 				fdDevice* dev = (fdDevice*)fdtable[file].file;
-		 	    if(fdtable[file].file != NULL){
+		 	    if(fdtable[file].file != 0){
 					dev->read(dev->device, buf, count, reply_cap, shared_region);
 				} 
 			}
@@ -164,7 +164,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			if(file > 0 && file <= MAX_FILES){
 				fdnode* fdtable = tty_test_process.fdtable;
 				fdDevice* dev = (fdDevice*)fdtable[file].file;
-		 	    if(fdtable[file].file != NULL){
+		 	    if(fdtable[file].file != 0){
 					ret = dev->write(dev->device, buf, count);
 				} 
 			}
@@ -186,7 +186,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		{
 			seL4_Word user_addr = seL4_GetMR(1);
 			size_t count = seL4_GetMR(2);
-			region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd);
+			shared_region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd);
 			char *buf = malloc(count*sizeof(char));
 			if(buf == NULL){
 				dprintf(0,"Malloc failed in sys_open\n");

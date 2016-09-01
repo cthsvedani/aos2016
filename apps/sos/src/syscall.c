@@ -16,7 +16,7 @@ int sos_sleep(int msec, seL4_CPtr reply_cap){
 	}
 
 	*data = reply_cap;
-	uint32_t timer = register_timer(msec, &sos_wake, (void*)data);
+	uint32_t timer = register_timer(msec, (timer_callback_t)sos_wake, (void*)data);
 	if(!timer){
 		dprintf(0,"Help I'm stuck in an operating system %d\n", timer);
 		return 1;
@@ -26,8 +26,8 @@ int sos_sleep(int msec, seL4_CPtr reply_cap){
 }
 
 uint32_t sos_brk(long newbreak, pageDirectory * pd, region * heap){
-	dprintf(0, "PD is 0x%x, Heap is 0x%x\n", pd, heap);
 	if(newbreak == 0){
+		dprintf(0, "PD is 0x%x, Heap is 0x%x, Break is 0x%x\n", pd, heap, heap->vbase + heap->size);
 		return heap->vbase;
 	}
 	if(newbreak < heap->vbase || find_region(pd, newbreak)){
@@ -35,7 +35,7 @@ uint32_t sos_brk(long newbreak, pageDirectory * pd, region * heap){
 	}
 	
 	heap->size = newbreak - heap->vbase;
-	
+	dprintf(0, "PD is 0x%x, Heap is 0x%x, Break is 0x%x\n", pd, heap, heap->vbase + heap->size);
 	return newbreak;
 }
 
@@ -60,7 +60,7 @@ int sos_open(char* name, fdnode* fdtable, fd_mode mode){
 
 void sos_close(fdnode* fdtable, int index){
 	if(index < 0 || index > MAX_FILES) return; //The index doesn't make sense, ignore it.
-	if(fdtable[index].file != NULL){
+	if(fdtable[index].file != 0){
 		close_device(fdtable, index); //We don't have a file system, Only care about devices.
 	}
 }
