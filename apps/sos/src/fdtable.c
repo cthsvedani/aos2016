@@ -83,3 +83,16 @@ void close_device(fdnode* fdtable, int index){
 		fd->permissions = 0;
 		fd->type = 0; 
 }
+
+int check_device_permissions(fdnode* fd, fd_mode mode){
+    //read and write permissions on device
+    if(fd->permissions == fdReadWrite) {
+        return 1;
+    }
+    //either read or write permission on device
+    if(((fd->permissions == fdReadOnly) && (mode == fdReadOnly)) ||
+       ((fd->permissions == fdWriteOnly) && (mode == fdWriteOnly))) {
+        return 1;
+    } 
+    return 0;
+}

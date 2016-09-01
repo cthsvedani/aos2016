@@ -46,5 +46,6 @@ void unregister_device(char* name);
 
 int open_device(char* name, fdnode* fdtable, fd_mode mode);
 void close_device(fdnode* fdtable, int index);
+int check_device_permissions(fdnode* fd, fd_mode mode);
 
 #endif

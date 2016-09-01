@@ -54,9 +54,13 @@ int sos_open(char* name, fdnode* fdtable, fd_mode mode){
 	//We don't have a filesystem yet, so we only pass the string to the device list.
 }
 
-void sos_close(fdnode* fdtable, int index){
-	if(index < 0 || index > MAX_FILES) return; //The index doesn't make sense, ignore it.
+int sos_close(fdnode* fdtable, int index){
+	if(index < 0 || index > MAX_FILES) 
+        return 0; //The index doesn't make sense, ignore it.
 	if(fdtable[index].file != 0){
 		close_device(fdtable, index); //We don't have a file system, Only care about devices.
+        return 1;
 	}
+
+    return 0;
 }

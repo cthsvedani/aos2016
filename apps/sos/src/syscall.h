@@ -15,11 +15,12 @@
 #define SOS_SYS_SLEEP 126
 #define SOS_SYS_WRITE 114
 #define SOS_SYS_READ 112
+#define SOS_ERROR   707
 
 int sos_sleep(int msec, seL4_CPtr reply_cap);
 uint32_t sos_brk(long newbreak, pageDirectory * pd, region * heap);
 int sos_open(char* path, fdnode* fdtable, fd_mode mode);
-void sos_close(fdnode* fdtable, int index);
+int sos_close(fdnode* fdtable, int index);
 
 void sos_wake(uint32_t* id, void* data);
 

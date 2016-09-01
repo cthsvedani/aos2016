@@ -120,67 +120,94 @@ void handle_syscall(seL4_Word badge, int num_args) {
     switch (syscall_number) {
     case SOS_SYS_READ:
         {
-            dprintf(0, "in sos_sys_read\n");
             seL4_Word user_addr = seL4_GetMR(2);
             size_t count = seL4_GetMR(3);
+            /*dprintf(0, "SOS_SYS_READ: size %d \n", count);*/
             shared_region *shared_region = get_shared_region(user_addr, count,
                                                     tty_test_process.pd);
+            if(shared_region == NULL) {
+				dprintf(0,"Malloc shared_region failed in sys_read\n");
+                send_error_reply(reply_cap, -1);
+                break;
+            }
             char *buf = malloc(sizeof(char) * count);
 			blocking = 1;
 			if(buf == NULL){
-				panic("Buf allocation failed in read\n");
+				dprintf(0,"Malloc failed in sys_read\n");
+                free_shared_region_list(shared_region);
+                send_error_reply(reply_cap, -1);
+                break;
 			}
             get_shared_buffer(shared_region, count, buf);
    
 			int file = seL4_GetMR(1);
-			if(file > 0 && file <= MAX_FILES){
+			if((file > 0) && (file <= MAX_FILES) &&
+               check_device_permissions(tty_test_process.fdtable, fdReadOnly)){
 				fdnode* fdtable = tty_test_process.fdtable;
 				fdDevice* dev = (fdDevice*)fdtable[file].file;
 		 	    if(fdtable[file].file != 0){
 					dev->read(dev->device, buf, count, reply_cap, shared_region);
-				} 
-			}
+				} else {
+                    free(buf);
+                    free_shared_region_list(shared_region);
+                    send_error_reply(reply_cap, -1);
+                    break;
+                }
+			} else {
+                free(buf);
+                free_shared_region_list(shared_region);
+                send_error_reply(reply_cap, -1);
+                break;
+            }
             break;
         }
 	case SOS_SYS_WRITE:
 		{
             seL4_Word user_addr = seL4_GetMR(2);
             size_t count = seL4_GetMR(3);
-
+            /*dprintf(0, "SOS_SYS_WRITE: size %d \n", count);*/
             shared_region *shared_region = get_shared_region(user_addr, count, 
                                                     tty_test_process.pd);
 			if(shared_region == NULL){
-				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
-				seL4_SetMR(0, 0);
-				seL4_Send(reply_cap, reply);
-				break;
+				dprintf(0,"Malloc shared_region failed in sys_write\n");
+                send_error_reply(reply_cap, -1);
+                break;
 			}
             char *buf = malloc(sizeof(char) * count);
 			if(buf == NULL){
-				dprintf(0,"Malloc failed in sys_write\n");
+				dprintf(0,"Malloc buff failed in sys_write\n");
+                free_shared_region_list(shared_region);
+                send_error_reply(reply_cap, -1);
+                break;
 			}
+            //no allocation, errors are assumed very serious
             get_shared_buffer(shared_region, count, buf);
-            /*dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",*/
-                   /*seL4_GetMR(1), count); */
 
 			int ret = -1;
 			int file = seL4_GetMR(1);
 			if(file > 0 && file <= MAX_FILES){
 				fdnode* fdtable = tty_test_process.fdtable;
 				fdDevice* dev = (fdDevice*)fdtable[file].file;
-		 	    if(fdtable[file].file != 0){
+		 	    if(fdtable[file].file != 0 && check_device_permissions(fdtable, fdWriteOnly)){
 					ret = dev->write(dev->device, buf, count);
-				} 
-			}
-			else if(file == 0){
+				} else {
+                    free(buf);
+                    free_shared_region_list(shared_region);
+                    send_error_reply(reply_cap, -1);
+                    break;
+                }
+			} else if(file == 0){
 				out(outDev, buf, count);
-			}
+			} else {
+                free(buf);
+                free_shared_region_list(shared_region);
+                send_error_reply(reply_cap, -1);
+                break;
+            }
 
-            //need to free whole mem
             free(buf);
 			buf = NULL;
 
-            /*dprintf(0, "ret is %d\n", ret);*/
             seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
             seL4_SetMR(0, ret);
             seL4_Send(reply_cap, reply);
@@ -192,12 +219,20 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			seL4_Word user_addr = seL4_GetMR(1);
 			size_t count = seL4_GetMR(2);
 			shared_region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd);
+			if(shared_region == NULL){
+				dprintf(0,"Malloc shared_region failed in sys_open\n");
+                send_error_reply(reply_cap, -1);
+                break;
+			}
+
 			char *buf = malloc(count*sizeof(char));
 			if(buf == NULL){
-				dprintf(0,"Malloc failed in sys_open\n");
+				dprintf(0,"Malloc buff failed in sys_open\n");
+                free_shared_region_list(shared_region);
+                send_error_reply(reply_cap, -1);
+                break;
 			}
 			get_shared_buffer(shared_region, count, buf);
-			dprintf(0,"Attempting Open\n");
 			int ret = sos_open(buf, tty_test_process.fdtable, seL4_GetMR(3));
 			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0, ret);
@@ -209,10 +244,14 @@ void handle_syscall(seL4_Word badge, int num_args) {
 	case SOS_SYS_CLOSE:
 		{
 			int index = seL4_GetMR(0);
-			sos_close(tty_test_process.fdtable, index);
-			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
-			seL4_SetMR(0,0);
-			seL4_Send(reply_cap,reply);
+			int ret = sos_close(tty_test_process.fdtable, index);
+            if(ret) {
+                seL4_SetMR(0,0);
+            } else {
+                seL4_SetMR(0,-1);
+            }
+            seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+            seL4_Send(reply_cap,reply);
 			break;
 		}
 	case SOS_SYS_USLEEP:
@@ -225,33 +264,40 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		}
 		break;
 	case SOS_SYS_TIMESTAMP:
-		{
-			uint64_t time = time_stamp();
-			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,2);
-			seL4_SetMR(0, (time >> 32));
-			seL4_SetMR(1, (time << 32) >> 32);
-			seL4_Send(reply_cap,reply);
-		}
-		break;
+    {
+        uint64_t time = time_stamp();
+        seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,2);
+        seL4_SetMR(0, (time >> 32));
+        seL4_SetMR(1, (time << 32) >> 32);
+        seL4_Send(reply_cap,reply);
+        break;
+    }
 	case SOS_SYS_BRK:
 	{
-		uint32_t brk = sos_brk(seL4_GetMR(1), tty_test_process.pd, tty_test_process.heap);
-		seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
-		seL4_SetMR(0, brk);
-		seL4_Send(reply_cap, reply);
+        uint32_t brk = sos_brk(seL4_GetMR(1), tty_test_process.pd, tty_test_process.heap);
+        seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+        seL4_SetMR(0, brk);
+        seL4_Send(reply_cap, reply);
+        break;
 	}
-		break;
     default:
         dprintf(0, "Unknown syscall %d\n", syscall_number);
         /* we don't want to reply to an unknown syscall */
 
     }
 
-    /* Free the saved reply cap */
-	if(!blocking){
+    /* Free the saved reply cap, read can block and should then free it later*/
+	if((syscall_number != SOS_SYS_READ) || !blocking){
     	cspace_free_slot(cur_cspace, reply_cap);
 	}
 }
+
+void send_error_reply(seL4_CPtr reply_cap, int ret) {
+        seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+        seL4_SetMR(0, ret);
+        seL4_Send(reply_cap, reply);
+}
+
 
 void syscall_loop(seL4_CPtr ep) {
 
