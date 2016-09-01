@@ -36,7 +36,7 @@
 
 #include <autoconf.h>
 
-#define verbose 0
+#define verbose 1
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -108,7 +108,7 @@ extern fhandle_t mnt_point;
 void handle_syscall(seL4_Word badge, int num_args) {
     seL4_Word syscall_number;
     seL4_CPtr reply_cap;
-
+	int blocking = 0;
 
     syscall_number = seL4_GetMR(0);
 
@@ -126,6 +126,10 @@ void handle_syscall(seL4_Word badge, int num_args) {
             shared_region *shared_region = get_shared_region(user_addr, count,
                                                     tty_test_process.pd);
             char *buf = malloc(sizeof(char) * count);
+			blocking = 1;
+			if(buf == NULL){
+				panic("Buf allocation failed in read\n");
+			}
             get_shared_buffer(shared_region, count, buf);
    
 			int file = seL4_GetMR(1);
@@ -174,6 +178,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 
             //need to free whole mem
             free(buf);
+			buf = NULL;
 
             /*dprintf(0, "ret is %d\n", ret);*/
             seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
@@ -198,6 +203,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			seL4_SetMR(0, ret);
 			seL4_Send(reply_cap, reply);
 			free(buf);
+			buf = NULL;
 			break;
 		}
 	case SOS_SYS_CLOSE:
@@ -211,6 +217,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		}
 	case SOS_SYS_USLEEP:
 		{
+			blocking = 1;
 			if(sos_sleep(seL4_GetMR(1), reply_cap)){
 				//Sleep failed What do?!
 				dprintf(0, "Sleep failed, what do?\n");
@@ -241,7 +248,9 @@ void handle_syscall(seL4_Word badge, int num_args) {
     }
 
     /* Free the saved reply cap */
-    cspace_free_slot(cur_cspace, reply_cap);
+	if(!blocking){
+    	cspace_free_slot(cur_cspace, reply_cap);
+	}
 }
 
 void syscall_loop(seL4_CPtr ep) {
@@ -522,10 +531,10 @@ uint32_t timerid[2];
 
 int main(void) {
 
-    dprintf(0, "\nSOS Starting...\n");
 
     _sos_init(&_sos_ipc_ep_cap, &_sos_interrupt_ep_cap);
 
+    dprintf(0, "\nSOS Starting...\n");
     /* Initialise the network hardware */
     network_init(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_NETWORK));
 

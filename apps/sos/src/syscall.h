@@ -21,6 +21,6 @@ uint32_t sos_brk(long newbreak, pageDirectory * pd, region * heap);
 int sos_open(char* path, fdnode* fdtable, fd_mode mode);
 void sos_close(fdnode* fdtable, int index);
 
-void sos_wake(int* id, void* data);
+void sos_wake(uint32_t* id, void* data);
 
 #endif

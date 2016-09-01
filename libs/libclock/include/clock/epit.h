@@ -24,18 +24,15 @@ typedef struct {
 #define EPIT_DB_EN (1 << 18)
 #define EPIT_I_OVW (1 << 17)
 #define EPIT_SW_R (1 << 16)
-#define EPIT_PRESCALE_CONST (3300 << 4)
+#define EPIT_PRESCALE_CONST (66 << 4)
 #define EPIT_PRESCALE_MSK (0xFFF << 4)
 #define EPIT_RLD (1 << 3)
 #define EPIT_OCI_EN (1 << 2)
 #define EPIT_EN_MOD (1 << 1)
 #define EPIT_EN (1 << 0)
 
-#define EPIT_TICK 0.05
-#define EPIT_TICK_PER_MS 20
-#define EPIT_CLOCK_TICK 0.06206
-//#define EPIT_CLOCK_TICK 0.00001515
-#define EPIT_CLOCK_OVERFLOW 266546000
+#define EPIT_TICK_PER_MS 1
+#define EPIT_CLOCK_OVERFLOW	4294967295 
 //#define EPIT_CLOCK_OVERFLOW 65069
 
 

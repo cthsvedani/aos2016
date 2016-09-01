@@ -162,7 +162,6 @@ void epit_init(EPIT *timer){
 void epit_setTimerClock(EPIT *timer) {
     timer->REG_Control &= (0xFFFFFFFF ^ (EPIT_EN_MOD));
     timer->REG_Control &= (0xFFFFFFFF ^ (EPIT_RLD));
-    timer->REG_Control |= EPIT_PRESCALE_MSK;
     timer->REG_Status = 1;
 }
 
@@ -185,9 +184,6 @@ uint64_t epit_getCurrentTimestamp() {
 		offset = 0; //The count is low, so we read before the rollover, we don't need an extra cycle
 		}	
     }
-
-    //Convert to ms
-    count *= EPIT_CLOCK_TICK;
 
     //Add overflow values
     uint64_t timestamp = (timestamp_overflows + offset) * EPIT_CLOCK_OVERFLOW;

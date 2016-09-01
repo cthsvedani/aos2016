@@ -16,11 +16,7 @@ int sos_sleep(int msec, seL4_CPtr reply_cap){
 	}
 
 	*data = reply_cap;
-	uint32_t timer = register_timer(msec, (timer_callback_t)sos_wake, (void*)data);
-	if(!timer){
-		dprintf(0,"Help I'm stuck in an operating system %d\n", timer);
-		return 1;
-	}
+	uint32_t timer = register_timer(msec * 1000, (timer_callback_t)sos_wake, (void*)data);
 
 	return 0;
 }
@@ -39,7 +35,7 @@ uint32_t sos_brk(long newbreak, pageDirectory * pd, region * heap){
 	return newbreak;
 }
 
-void sos_wake(int* id, void* data){
+void sos_wake(uint32_t* id, void* data){
 	seL4_CPtr reply = *((seL4_CPtr*)data);
 	free(data);
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);

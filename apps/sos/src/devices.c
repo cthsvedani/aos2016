@@ -66,12 +66,13 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
             memcpy(buff, serialbuffer + serialReadIndex, buffer_left);
             memcpy(buff + buffer_left, serialbuffer, len - buffer_left); 
 		}
-        buffLen -= len;
-        serialReadIndex += len;
-        serialReadIndex = serialReadIndex % IO_BUFFER_LENGTH;
+        buffLen = 0;
+        serialReadIndex = 0;
+        serialWriteIndex = 0;
+		free(buff);	
         finish_func = NULL;
         dprintf(0, "calling return reply with len %d\n", len);
-        return_reply(len);
+        return_reply(len, reply);
 		return;
 	} else if(newlineIndex != -1){
         int offset = 0;
@@ -95,20 +96,19 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
 		newlineIndex = -1;
         finish_func = NULL;
         dprintf(0, "calling return reply bufflen < len with len %d\n", offset);
-        return_reply(offset);
+        return_reply(offset, reply);
 		return;
     } 
     dprintf(0, "returning without reply in read finish nonsense case\n");
     return;
 }
 
-void return_reply(int ret) {
+void return_reply(int ret, seL4_CPtr fin_reply) {
     dprintf(0, "replying with %d, containing finish_buff %s", ret, finish_buff);
     put_to_shared_region(finish_region, finish_buff);
-    seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 3);
+    seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
     seL4_SetMR(0, ret);
-    seL4_SetMR(1, finish_region->user_addr);
-    seL4_Send(finish_reply, reply);
+    seL4_Send(fin_reply, reply);
 }
 
 void serial_callback(struct serial * serial, char c){
@@ -116,7 +116,6 @@ void serial_callback(struct serial * serial, char c){
 	if(serialWriteIndex + 1 != serialReadIndex){
 		serialbuffer[serialWriteIndex] = c;
 		if(c == '\n') {
-			dprintf(0, "OH NO A NEWLINE WHAT DO?!\n");
             newlineIndex = serialWriteIndex;
         }
 		serialWriteIndex++;

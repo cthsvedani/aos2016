@@ -5,7 +5,7 @@
 #include "mapping.h"
 #include "vmem_layout.h"
 
-#define verbose 1
+#define verbose 0
 #include "sys/debug.h"
 #include "sys/panic.h"
 

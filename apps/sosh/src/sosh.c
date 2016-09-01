@@ -277,7 +277,7 @@ int main(void) {
 
     printf("[SOS Starting]\n");
 
-    test_buffers(3);
+//    test_buffers(3);
 
     while (!done) {
         if (new) {
@@ -290,7 +290,6 @@ int main(void) {
             /*[> Make sure to flush so anything is visible while waiting for user input <]*/
             fflush(stdout);
             r = read(in, bp, BUF_SIZ - 1 + buf - bp);
-            printf("read newline");
             if (r < 0) {
                 printf("Console read failed!\n");
                 done = 1;
@@ -421,17 +420,20 @@ int test_buffers(int console_fd) {
    //the console, without newlines
    printf("Enter 6144 chars\n");
    result = sos_sys_read(console_fd, &stack_buf, BUF_SIZ);
-   printf("\nresult is %d\n", result);
+   printf("result is %d\n", result);
    assert(result == BUF_SIZ);
 
    printf("Writing 6144 bytes\n");
    result = sos_sys_write(console_fd, &stack_buf, BUF_SIZ);
    assert(result == BUF_SIZ);
-	printf("Sleeping for 100\n");
-	sos_sys_usleep(10000);
+
+   sleep(10);
+
    //this call to malloc should trigger an sbrk
    char *heap_buf = malloc(BUF_SIZ);
    assert(heap_buf != NULL);
+
+	printf("\n Malloc Run Now \n");
 
    // for this test you'll need to paste a lot of data into 
    //   the console, without newlines
