@@ -124,7 +124,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
             seL4_Word user_addr = seL4_GetMR(2);
             size_t count = seL4_GetMR(3);
             shared_region *shared_region = get_shared_region(user_addr, count,
-                                                    tty_test_process.pd);
+                                                    tty_test_process.pd, fd_WriteOnly);
             char *buf = malloc(sizeof(char) * count);
 			blocking = 1;
 			if(buf == NULL){
@@ -156,7 +156,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
             size_t count = seL4_GetMR(3);
 
             shared_region *shared_region = get_shared_region(user_addr, count, 
-                                                    tty_test_process.pd);
+                                                    tty_test_process.pd, fd_ReadOnly);
 			if(shared_region == NULL){
 				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
 				seL4_SetMR(0, 0);
@@ -200,7 +200,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		{
 			seL4_Word user_addr = seL4_GetMR(1);
 			size_t count = seL4_GetMR(2);
-			shared_region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd);
+			shared_region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd, fd_ReadOnly);
 			char *buf = malloc(count*sizeof(char));
 			if(buf == NULL){
 				dprintf(0,"Malloc failed in sys_open\n");

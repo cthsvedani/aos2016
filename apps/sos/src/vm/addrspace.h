@@ -51,6 +51,8 @@ typedef struct sos_PageDirectory {
 	seL4_ARM_PageTable pTables_CPtr[VM_PDIR_LENGTH];	//seL4 Cap Pointer
 } pageDirectory;
 
+#include "fdtable.h"
+
 pageDirectory* pageTable_create(void);
 
 void PD_destroy(pageDirectory * pd);
@@ -67,9 +69,9 @@ void free_buffer(char* buf, int count);
 
 int vm_fault(pageDirectory * pd,seL4_Word addr);
 
-shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
+shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode);
 seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd);
-int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd);
+int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode);
 void get_shared_buffer(shared_region *shared_region, size_t count, char *buf);
 void free_shared_buffer(char * buf, size_t count);
 void put_to_shared_region(shared_region *shared_region, char *buf);

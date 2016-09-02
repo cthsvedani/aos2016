@@ -177,7 +177,7 @@ void put_to_shared_region(shared_region *shared_region, char *buf) {
     dprintf(0, "put_to_shared exiting \n");
 }
 
-shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
+shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode) {
     //Reuse region structs to define our regions of memory
     shared_region *head = malloc(sizeof(shared_region));
     dprintf(0, "in get_shared_region with len %d\n", len);
@@ -250,14 +250,16 @@ seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
     return VMEM_START + (ftable[index].index << seL4_PageBits);
 }
 
-int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd) {
+int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode) {
     region *start_region = find_region(user_pd, user_vaddr);
     region *end_region = find_region(user_pd, user_vaddr + len);
-//TODO CHECK FLAGS
+
     if((start_region && end_region) && 
-        //the buffer should not be spanning multiple regions
         (start_region->vbase == end_region->vbase)){
-        return 1;
+		if((mode == fdReadOnly && (start_region->flags & VM_FAULT_READ)) ||
+				 (mode == fdWriteOnly && (start_region->flags & VM_FAULT_WRITE) )){
+	        return 1;
+		}
     }
 
     return 0;
