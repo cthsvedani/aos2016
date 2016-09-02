@@ -77,8 +77,6 @@ const seL4_BootInfo* _boot_info;
 
 struct serial* serial;
 
-write_t out; //stdout
-void* outDev; //stdout device
 
 struct {
     seL4_Word tcb_addr;
@@ -120,100 +118,20 @@ void handle_syscall(seL4_Word badge, int num_args) {
     switch (syscall_number) {
     case SOS_SYS_READ:
         {
-            dprintf(0, "in sos_sys_read\n");
-            seL4_Word user_addr = seL4_GetMR(2);
-            size_t count = seL4_GetMR(3);
-            shared_region *shared_region = get_shared_region(user_addr, count,
-                                                    tty_test_process.pd, fdWriteOnly);
-            char *buf = malloc(sizeof(char) * count);
+			//For more complicated argument unpacking, we will use wrapper functions.
 			blocking = 1;
-			if(buf == NULL){
-				panic("Buf allocation failed in read\n");
-			}
-            get_shared_buffer(shared_region, count, buf);
-  
-			int file = seL4_GetMR(1);
-			if(file > 0 && file <= MAX_FILES){
-				fdnode* fdtable = tty_test_process.fdtable;
-				fdDevice* dev = (fdDevice*)fdtable[file].file;
-		 	    if(fdtable[file].file != 0 && 
-						(fdtable[file].permissions == fdReadOnly || fdtable[file].permissions == fdReadWrite)){
-					dev->read(dev->device, buf, count, reply_cap, shared_region);
-				}
-				else{
-					seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
-					seL4_SetMR(0, 0);
-					seL4_Send(reply_cap, reply);
-					cspace_free_slot(cur_cspace, reply_cap);
-					break;
-				} 
-			}
+			handle_sos_read(reply_cap, tty_test_process.pd, tty_test_process.fdtable);
             break;
         }
 	case SOS_SYS_WRITE:
 		{
-            seL4_Word user_addr = seL4_GetMR(2);
-            size_t count = seL4_GetMR(3);
-
-            shared_region *shared_region = get_shared_region(user_addr, count, 
-                                                    tty_test_process.pd, fdReadOnly);
-			if(shared_region == NULL){
-				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
-				seL4_SetMR(0, 0);
-				seL4_Send(reply_cap, reply);
-				break;
-			}
-            char *buf = malloc(sizeof(char) * count);
-			if(buf == NULL){
-				dprintf(0,"Malloc failed in sys_write\n");
-			}
-            get_shared_buffer(shared_region, count, buf);
-            /*dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",*/
-                   /*seL4_GetMR(1), count); */
-
-			int ret = -1;
-			int file = seL4_GetMR(1);
-			if(file > 0 && file <= MAX_FILES){
-				fdnode* fdtable = tty_test_process.fdtable;
-				fdDevice* dev = (fdDevice*)fdtable[file].file;
-		 	    if(fdtable[file].file != 0 && 
-						(fdtable[file].permissions == fdWriteOnly || fdtable[file].permissions == fdReadWrite)){
-					ret = dev->write(dev->device, buf, count);
-				} 
-			}
-			else if(file == 0){
-				out(outDev, buf, count);
-			}
-
-            //need to free whole mem
-            free(buf);
-			buf = NULL;
-
-            /*dprintf(0, "ret is %d\n", ret);*/
-            seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
-            seL4_SetMR(0, ret);
-            seL4_Send(reply_cap, reply);
-			free_shared_region_list(shared_region);
+			handle_sos_write(reply_cap, tty_test_process.pd, tty_test_process.fdtable);
 			break;
 		}
 	case SOS_SYS_OPEN:
 		{
-			seL4_Word user_addr = seL4_GetMR(1);
-			size_t count = seL4_GetMR(2);
-			shared_region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd, fdReadOnly);
-			char *buf = malloc(count*sizeof(char));
-			if(buf == NULL){
-				dprintf(0,"Malloc failed in sys_open\n");
-			}
-			get_shared_buffer(shared_region, count, buf);
-			dprintf(0,"Attempting Open\n");
-			int ret = sos_open(buf, tty_test_process.fdtable, seL4_GetMR(3));
-			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
-			seL4_SetMR(0, ret);
-			seL4_Send(reply_cap, reply);
-			free(buf);
-			buf = NULL;
-			break;
+			handle_sos_open(reply_cap,  tty_test_process.pd, tty_test_process.fdtable);
+			break;			
 		}
 	case SOS_SYS_CLOSE:
 		{
@@ -227,10 +145,8 @@ void handle_syscall(seL4_Word badge, int num_args) {
 	case SOS_SYS_USLEEP:
 		{
 			blocking = 1;
-			if(sos_sleep(seL4_GetMR(1), reply_cap)){
-				//Sleep failed What do?!
-				dprintf(0, "Sleep failed, what do?\n");
-			}
+			sos_sleep(seL4_GetMR(1), reply_cap);
+			
 		}
 		break;
 	case SOS_SYS_TIMESTAMP:
