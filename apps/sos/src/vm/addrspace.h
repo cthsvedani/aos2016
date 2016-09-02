@@ -18,8 +18,8 @@
 #define PAGE_OFFSET(a) ((a) & ((1 << seL4_PageBits) - 1))
 #define PAGE_ALIGN(a) ((a) & ~((1 << seL4_PageBits) -1))
 
-#define VM_FAULT_READ   0x1
-#define VM_FAULT_WRITE  0x2
+#define VM_FAULT_READ   0x2
+#define VM_FAULT_WRITE  0x1
 #define VM_FAULT_READONLY   0x4
 
 typedef struct region_t {
@@ -51,7 +51,6 @@ typedef struct sos_PageDirectory {
 	seL4_ARM_PageTable pTables_CPtr[VM_PDIR_LENGTH];	//seL4 Cap Pointer
 } pageDirectory;
 
-#include "fdtable.h"
 
 pageDirectory* pageTable_create(void);
 
@@ -69,9 +68,7 @@ void free_buffer(char* buf, int count);
 
 int vm_fault(pageDirectory * pd,seL4_Word addr);
 
-shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode);
 seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd);
-int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode);
 void get_shared_buffer(shared_region *shared_region, size_t count, char *buf);
 void free_shared_buffer(char * buf, size_t count);
 void put_to_shared_region(shared_region *shared_region, char *buf);

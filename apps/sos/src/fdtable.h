@@ -47,4 +47,6 @@ void unregister_device(char* name);
 int open_device(char* name, fdnode* fdtable, fd_mode mode);
 void close_device(fdnode* fdtable, int index);
 
+shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode);
+int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode);
 #endif

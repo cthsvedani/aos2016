@@ -4,6 +4,7 @@
 #include "frametable.h"
 #include "mapping.h"
 #include "vmem_layout.h"
+#include "fdtable.h"
 
 #define verbose 0
 #include "sys/debug.h"
@@ -194,7 +195,7 @@ shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirector
     int i = 0;
     while(len > 0) {
         //check defined user regions
-        if(!pt_ckptr(user_vaddr, len, user_pd)) {
+        if(!pt_ckptr(user_vaddr, len, user_pd, mode)) {
             dprintf(0,"Invalid memory region\n");
             free_shared_region_list(head);
             return NULL;

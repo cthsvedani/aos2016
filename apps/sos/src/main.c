@@ -124,7 +124,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
             seL4_Word user_addr = seL4_GetMR(2);
             size_t count = seL4_GetMR(3);
             shared_region *shared_region = get_shared_region(user_addr, count,
-                                                    tty_test_process.pd, fd_WriteOnly);
+                                                    tty_test_process.pd, fdWriteOnly);
             char *buf = malloc(sizeof(char) * count);
 			blocking = 1;
 			if(buf == NULL){
@@ -156,7 +156,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
             size_t count = seL4_GetMR(3);
 
             shared_region *shared_region = get_shared_region(user_addr, count, 
-                                                    tty_test_process.pd, fd_ReadOnly);
+                                                    tty_test_process.pd, fdReadOnly);
 			if(shared_region == NULL){
 				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
 				seL4_SetMR(0, 0);
@@ -200,7 +200,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		{
 			seL4_Word user_addr = seL4_GetMR(1);
 			size_t count = seL4_GetMR(2);
-			shared_region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd, fd_ReadOnly);
+			shared_region * shared_region = get_shared_region(user_addr, count, tty_test_process.pd, fdReadOnly);
 			char *buf = malloc(count*sizeof(char));
 			if(buf == NULL){
 				dprintf(0,"Malloc failed in sys_open\n");
@@ -428,13 +428,13 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     err = elf_load(tty_test_process.pd, elf_base, &heap_start);
     conditional_panic(err, "Failed to load elf image");
 	heap_start += HEAP_BUFFER;
-	tty_test_process.heap = new_region(tty_test_process.pd, heap_start, 0, seL4_ARM_Default_VMAttributes); 	
+	tty_test_process.heap = new_region(tty_test_process.pd, heap_start, 0, VM_FAULT_READ | VM_FAULT_WRITE); 	
 
     /* Create a stack frame */
     stack_frame = frame_alloc();
 	
 	new_region(tty_test_process.pd, PROCESS_STACK_TOP, PROCESS_STACK_TOP - STACK_BOTTOM,
-			seL4_ARM_Default_VMAttributes | REGION_STACK);
+			VM_FAULT_READ | VM_FAULT_WRITE | REGION_STACK);
     err = sos_map_page(tty_test_process.pd, stack_frame,
                    PROCESS_STACK_TOP - (1 << seL4_PageBits),
                    seL4_AllRights, seL4_ARM_Default_VMAttributes);
