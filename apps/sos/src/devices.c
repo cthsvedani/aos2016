@@ -73,6 +73,7 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
         finish_func = NULL;
         dprintf(0, "calling return reply with len %d\n", len);
         return_reply(len, reply);
+		newlineIndex = -1;
 		return;
 	} else if(newlineIndex != -1){
         int offset = 0;

@@ -131,13 +131,21 @@ void handle_syscall(seL4_Word badge, int num_args) {
 				panic("Buf allocation failed in read\n");
 			}
             get_shared_buffer(shared_region, count, buf);
-   
+  
 			int file = seL4_GetMR(1);
 			if(file > 0 && file <= MAX_FILES){
 				fdnode* fdtable = tty_test_process.fdtable;
 				fdDevice* dev = (fdDevice*)fdtable[file].file;
-		 	    if(fdtable[file].file != 0){
+		 	    if(fdtable[file].file != 0 && 
+						(fdtable[file].permissions == fdReadOnly || fdtable[file].permissions == fdReadWrite)){
 					dev->read(dev->device, buf, count, reply_cap, shared_region);
+				}
+				else{
+					seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
+					seL4_SetMR(0, 0);
+					seL4_Send(reply_cap, reply);
+					cspace_free_slot(cur_cspace, reply_cap);
+					break;
 				} 
 			}
             break;
@@ -168,7 +176,8 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			if(file > 0 && file <= MAX_FILES){
 				fdnode* fdtable = tty_test_process.fdtable;
 				fdDevice* dev = (fdDevice*)fdtable[file].file;
-		 	    if(fdtable[file].file != 0){
+		 	    if(fdtable[file].file != 0 && 
+						(fdtable[file].permissions == fdWriteOnly || fdtable[file].permissions == fdReadWrite)){
 					ret = dev->write(dev->device, buf, count);
 				} 
 			}

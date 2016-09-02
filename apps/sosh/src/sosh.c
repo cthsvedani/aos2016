@@ -268,7 +268,7 @@ int main(void) {
     char *bp, *p;
     printf("[SOS Starting]\n");
 
-    in = open("console", O_RDONLY);
+    in = open("console", FM_READWRITE);
     assert(in >= 0);
 
     bp = buf;
@@ -277,7 +277,7 @@ int main(void) {
 
     printf("[SOS Starting]\n");
 
-//    test_buffers(3);
+    test_buffers(3);
 
     while (!done) {
         if (new) {
@@ -399,7 +399,7 @@ int test_buffers(int console_fd) {
    //test a small string from the code segment
    int result = sos_sys_write(console_fd, test_str, strlen(test_str));
    assert(result == strlen(test_str));
-/*
+
    // test reading to a small buffer
    printf("Enter 2 chars\n");
    result = sos_sys_read(console_fd, small_buf, SMALL_BUF_SZ);
@@ -407,13 +407,6 @@ int test_buffers(int console_fd) {
    printf("result is %d\n", result);
    assert(result == SMALL_BUF_SZ);
 
-   // test reading to a medium buffer
-   printf("Enter 2048 chars\n");
-   result = sos_sys_read(console_fd, medium_buf, MEDIUM_BUF_SZ);
-   // make sure you type in at least SMALL_BUF_SZ
-   printf("result is %d\n", result);
-   assert(result == MEDIUM_BUF_SZ);
-*/
    // test a reading into a large on-stack buffer
    char stack_buf[BUF_SIZ];
    // for this test you'll need to paste a lot of data into 
