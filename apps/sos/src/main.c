@@ -44,6 +44,7 @@
 #include "frametable_tests.h"
 #include "syscall.h"
 #include "devices.h"
+#include "fsystem.h"
 
 #include "vm/addrspace.h"
 #include <sos/rpc.h>
@@ -191,7 +192,8 @@ void syscall_loop(seL4_CPtr ep) {
             /* Interrupt */
             if (badge & IRQ_BADGE_NETWORK) {
                 network_irq();
-            } else if(badge & IRQ_BADGE_CLOCK) {
+            }
+			if(badge & IRQ_BADGE_CLOCK) {
                 timer_interrupt();
             }
         }else if(label == seL4_VMFault){
@@ -475,6 +477,7 @@ int main(void) {
     /* Initialise timers */
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));
     /* Start the user application */
+	fsystemStart();
     start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
     /* Wait on synchronous endpoint for IPC */

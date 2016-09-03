@@ -277,7 +277,7 @@ int main(void) {
 
     printf("[SOS Starting]\n");
 
-    test_buffers(3);
+//    test_buffers(3);
 
     while (!done) {
         if (new) {

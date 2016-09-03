@@ -60,7 +60,7 @@ handle_irq_callback() {
 
       //In the simple case of one timer, we will reset timer before the callback.
       //In the harder case where multiple timers need to fire we have to fire the callbacks first.
-      while(queue.head && queue.head->timestamp <= timestamp){
+      while(queue.head && (queue.head->timestamp <= timestamp)){
           callback_node_t *temp2 = queue.head;
           queue.head = queue.head->next;
           temp2->callback(temp2->id, temp2->data);
@@ -157,6 +157,7 @@ void epit_init(EPIT *timer){
     *CR |= (EPIT_PRESCALE_CONST | EPIT_CLK_PERIPHERAL | EPIT_RLD); 
     timer->REG_Status = 1; //Clear Status Register
     *CR |= (EPIT_EN_MOD | EPIT_OCI_EN); //Timer will reset from 0xFFFF_FFFF or Load Value
+	*CR |= EPIT_I_OVW;	
 }
 
 void epit_setTimerClock(EPIT *timer) {
@@ -194,9 +195,6 @@ uint64_t epit_getCurrentTimestamp() {
 
 void epit_setTime(EPIT *timer, uint64_t milliseconds, int reset){
 	//IF reset is non-zero We'll tell the timer to restart from our new value.
-    if(reset){
-		timer->REG_Control |= EPIT_I_OVW;	
-    }
     epit_stopTimer(timer);
     uint32_t newCount;
     milliseconds *= EPIT_TICK_PER_MS;
@@ -207,9 +205,6 @@ void epit_setTime(EPIT *timer, uint64_t milliseconds, int reset){
     } 
 	timer->REG_Load = newCount;
     epit_startTimer(timer);
-    if(reset){
-        timer->REG_Control &= (0xFFFFFFFF ^(EPIT_I_OVW));
-    }
 }
 
 void epit_startTimer(EPIT *timer){
@@ -292,16 +287,12 @@ uint32_t register_timer(uint64_t delay, timer_callback_t callback, void *data) {
        //activate the new timer
            node->next = queue.head;
            queue.head = node;
-           epit_stopTimer(timers[0].reg);
            epit_setTime(timers[0].reg, delay, 1);
-           epit_startTimer(timers[0].reg);
        }
     }
     else {
         queue.head = node;
-    	epit_stopTimer(timers[0].reg);
         epit_setTime(timers[0].reg, delay, 1);
-        epit_startTimer(timers[0].reg);
     }
             
     return id;
