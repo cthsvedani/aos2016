@@ -12,6 +12,8 @@
 #define SOS_SYS_OPEN 2
 #define SOS_SYS_CLOSE 3
 
+#define SOS_SYS_STAT 100
+
 #define SOS_SYS_SLEEP 126
 #define SOS_SYS_WRITE 114
 #define SOS_SYS_READ 112

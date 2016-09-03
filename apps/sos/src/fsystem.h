@@ -8,6 +8,7 @@
 #include "nfs/nfs.h"
 
 #define MAX_PROCESSES 10
+#define MAX_NFS_REQUESTS MAX_PROCESSES
 #define NFS_TIME 100000
 
 typedef struct request{
@@ -26,7 +27,7 @@ typedef struct {
   long		 st_atime;   /* file last access (open) time (ms since booting) */
 } stat_t;
 
-fs_request * fs_req[MAX_PROCESSES];
+fs_request * fs_req[MAX_NFS_REQUESTS];
 
 int fs_next_index();
 void fs_free_index();
@@ -40,5 +41,7 @@ void fs_open_complete(int index);
 void fs_stat(char* name, shared_region* stat_region, seL4_CPtr reply);
 void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t * fattr);
 
+void fs_getDirEnt(char* kbuff, shared_region* name_region, seL4_CPtr reply ,int position, size_t n);
+void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, char* file_names[], nfscookie_t nfscookie);
 
 #endif

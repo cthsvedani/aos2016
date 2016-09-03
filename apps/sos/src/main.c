@@ -166,6 +166,11 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		seL4_Send(reply_cap, reply);
 	}
 		break;
+	case SOS_SYS_STAT:
+	{
+		blocking = handle_sos_stat(reply_cap, tty_test_process.pd);
+		break;
+	}
     default:
         dprintf(0, "Unknown syscall %d\n", syscall_number);
         /* we don't want to reply to an unknown syscall */

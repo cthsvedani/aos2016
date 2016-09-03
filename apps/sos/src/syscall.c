@@ -7,6 +7,7 @@
 #include "syscall.h"
 #include "stdlib.h"
 #include "timer.h"
+#include "fsystem.h"
 
 int sos_sleep(int msec, seL4_CPtr reply_cap){
 	seL4_CPtr* data = malloc(sizeof(seL4_CPtr));
@@ -158,5 +159,23 @@ int handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 }
 
 int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory * pd){
-	return 0;
+		seL4_Word user_addr = seL4_GetMR(1);
+		size_t count = seL4_GetMR(2);
+		seL4_Word user_stat = seL4_GetMR(3);
+		size_t size = count;
+		if(size < sizeof(stat_t)){
+			size = sizeof(stat_t);
+		}
+		shared_region * shared_region = get_shared_region(user_addr, count, pd, fdReadOnly);
+		char *buf = malloc(size*sizeof(char));//We need to make sure the buffer is big enough to take the return as well!
+		if(buf == NULL){
+			dprintf(0,"Malloc failed in sos_stat\n");
+		}
+		get_shared_buffer(shared_region, count, buf);
+		//After extracting the string, we don't need the shared_region for the name anymore, we can store
+		//the shared region for the stat block instead.
+		free_shared_region_list(shared_region);	
+		shared_region = get_shared_region(user_stat, size, pd, fdReadOnly);	
+		fs_stat(buf, shared_region, reply_cap);
+		return 1;
 } 

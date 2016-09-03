@@ -20,7 +20,7 @@
 /* System calls for SOS */
 #define SOS_SYS_OPEN 2
 #define SOS_SYS_CLOSE 3
-
+#define SOS_SYS_STAT 100
 #define SOS_SYS_SLEEP 126
 #define SOS_SYS_TIMESTAMP 127
 #define SOS_SYS_WRITE 114

@@ -89,8 +89,13 @@ int sos_getdirent(int pos, char *name, size_t nbyte){
 }
 
 int sos_stat(const char *path, sos_stat_t *buf){
-	printf("system call not implemented.\n");
-	return 0;
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,4);
+	seL4_SetMR(0, SOS_SYS_STAT);
+	seL4_SetMR(1, path);
+	seL4_SetMR(2, strnlen(path, 1024));
+	seL4_SetMR(3, buf);
+	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+	return seL4_GetMR(0);
 }
 
 pid_t sos_process_create(const char *path){
