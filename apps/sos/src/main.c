@@ -49,6 +49,9 @@
 #include <sos/rpc.h>
 #include <sos.h>
 
+#include "nfs.h"
+
+
 
 /* This is the index where a clients syscall enpoint will
  * be stored in the clients cspace. */
@@ -100,7 +103,10 @@ seL4_CPtr _sos_interrupt_ep_cap;
 /**
  * NFS mount point
  */
+//192.168.168.2
+#define IPADDR_SERV         ((u32_t)0xc0A8A802UL)
 extern fhandle_t mnt_point;
+const struct ip_addr nfs_server = {IPADDR_SERV };
 
 
 void handle_syscall(seL4_Word badge, int num_args) {
@@ -435,7 +441,6 @@ static void _sos_init(seL4_CPtr* ipc_ep, seL4_CPtr* async_ep){
     err = dma_init(dma_addr, DMA_SIZE_BITS);
     conditional_panic(err, "Failed to intiialise DMA memory\n");
 
-
     /* Create framtable */
     frametable_init(low, high, cur_cspace);
 
@@ -455,8 +460,6 @@ uint32_t timerid[2];
  */
 
 int main(void) {
-
-
     _sos_init(&_sos_ipc_ep_cap, &_sos_interrupt_ep_cap);
 
     dprintf(0, "\nSOS Starting...\n");
@@ -474,6 +477,7 @@ int main(void) {
 
     /* Initialise timers */
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));
+
     /* Start the user application */
     start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
@@ -482,6 +486,9 @@ int main(void) {
 
     /*ftest();*/
     /*ftest_cap();*/
+
+    /* Initialise nfs server */
+    sos_nfs_connect(&nfs_server);
 
     syscall_loop(_sos_ipc_ep_cap);
 
