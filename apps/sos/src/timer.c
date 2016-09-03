@@ -25,7 +25,7 @@ timer timers[2];
 int freelist[CLOCK_MAX_TIMERS];
 
 //The callback queue
-callback_queue queue;
+static callback_queue queue;
 
 /*******************
  *** IRQ handler ***
@@ -64,8 +64,8 @@ handle_irq_callback() {
           callback_node_t *temp2 = queue.head;
           queue.head = queue.head->next;
           temp2->callback(temp2->id, temp2->data);
-          free(temp2);
           deallocate_timer_id(temp2->id);
+          free(temp2);
        }
 
  
@@ -77,8 +77,8 @@ handle_irq_callback() {
        }
 
        temp->callback(temp->id, temp->data);
-       free(temp); 
        deallocate_timer_id(temp->id);
+       free(temp); 
    }        
 }
 
@@ -309,8 +309,8 @@ int stop_timer(void){
     callback_node_t *temp = queue.head;
     while(queue.head) {
         queue.head = temp->next;
-        free(temp);
         deallocate_timer_id(temp->id);
+        free(temp);
         temp = queue.head;
     }
     

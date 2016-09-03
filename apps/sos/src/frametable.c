@@ -10,10 +10,10 @@
 
 extern frame* ftable;
 
-frame * freeList;
-int _ftInit = 0;
-seL4_CPtr pd;
-int bootstrapFrames;
+static frame * freeList;
+static int _ftInit = 0;
+static seL4_CPtr pd;
+static int bootstrapFrames;
 
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) { 
     assert(!_ftInit);

@@ -120,18 +120,17 @@ void handle_syscall(seL4_Word badge, int num_args) {
     case SOS_SYS_READ:
         {
 			//For more complicated argument unpacking, we will use wrapper functions.
-			blocking = 1;
-			handle_sos_read(reply_cap, tty_test_process.pd, tty_test_process.fdtable);
+			blocking =	handle_sos_read(reply_cap, tty_test_process.pd, tty_test_process.fdtable);
             break;
         }
 	case SOS_SYS_WRITE:
 		{
-			handle_sos_write(reply_cap, tty_test_process.pd, tty_test_process.fdtable);
+			blocking = handle_sos_write(reply_cap, tty_test_process.pd, tty_test_process.fdtable);
 			break;
 		}
 	case SOS_SYS_OPEN:
 		{
-			handle_sos_open(reply_cap,  tty_test_process.pd, tty_test_process.fdtable);
+			blocking = handle_sos_open(reply_cap,  tty_test_process.pd, tty_test_process.fdtable);
 			break;			
 		}
 	case SOS_SYS_CLOSE:
@@ -477,8 +476,10 @@ int main(void) {
     /* Initialise timers */
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));
     /* Start the user application */
+	
 	fsystemStart();
-    start_first_process(TTY_NAME, _sos_ipc_ep_cap);
+    
+	start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");

@@ -23,9 +23,11 @@ void* outDev; //stdout device
 int sos_sleep(int msec, seL4_CPtr reply_cap);
 uint32_t sos_brk(long newbreak, pageDirectory * pd, region * heap);
 int sos_open(char* path, fdnode* fdtable, fd_mode mode);
-void sos_close(fdnode* fdtable, int index);
-void handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable);
-void handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable);
+int sos_close(fdnode* fdtable, int index);
+int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable);
+int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable);
 void sos_wake(uint32_t* id, void* data);
-void handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable);
+int handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable);
+
+int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory* pd);
 #endif

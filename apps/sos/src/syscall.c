@@ -54,14 +54,15 @@ int sos_open(char* name, fdnode* fdtable, fd_mode mode){
 	//We don't have a filesystem yet, so we only pass the string to the device list.
 }
 
-void sos_close(fdnode* fdtable, int index){
-	if(index < 0 || index > MAX_FILES) return; //The index doesn't make sense, ignore it.
+int sos_close(fdnode* fdtable, int index){
+	if(index < 0 || index > MAX_FILES) return 0; //The index doesn't make sense, ignore it.
 	if(fdtable[index].file != 0){
 		close_device(fdtable, index); //We don't have a file system, Only care about devices.
 	}
+	return 0;
 }
 
-void handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
+int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             dprintf(0, "in sos_sys_read\n");
             seL4_Word user_addr = seL4_GetMR(2);
             size_t count = seL4_GetMR(3);
@@ -84,14 +85,14 @@ void handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 					seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
 					seL4_SetMR(0, 0);
 					seL4_Send(reply_cap, reply);
-					cspace_free_slot(cur_cspace, reply_cap);
-					return;
+					return 0;
 				} 
 		}
+	return 1;
 }
 
 
-void handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
+int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             seL4_Word user_addr = seL4_GetMR(2);
             size_t count = seL4_GetMR(3);
 
@@ -101,7 +102,7 @@ void handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
 				seL4_SetMR(0, 0);
 				seL4_Send(reply_cap, reply);
-			return;		
+			return 0;		
 	}
             char *buf = malloc(sizeof(char) * count);
 			if(buf == NULL){
@@ -133,10 +134,11 @@ void handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             seL4_SetMR(0, ret);
             seL4_Send(reply_cap, reply);
 			free_shared_region_list(shared_region);
+			return 0;
 }
 
 
-void handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
+int handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 			seL4_Word user_addr = seL4_GetMR(1);
 			size_t count = seL4_GetMR(2);
 			shared_region * shared_region = get_shared_region(user_addr, count, pd, fdReadOnly);
@@ -152,4 +154,9 @@ void handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 			seL4_Send(reply_cap, reply);
 			free(buf);
 			buf = NULL;
+			return 0;
 }
+
+int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory * pd){
+	return 0;
+} 
