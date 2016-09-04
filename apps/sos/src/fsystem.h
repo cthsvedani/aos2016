@@ -35,8 +35,9 @@ void fs_free_index();
 void fsystemStart();
 void timeout(uint32_t id, void* data);
 
-int fs_open(char* buff, fdnode* fdtable, seL4_CPtr reply);
-void fs_open_complete(int index);
+void fs_open(char* buff,fdnode* fdtable, fd_mode mode,seL4_CPtr reply);
+void fs_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr);
+void fs_open_create(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr);
 
 void fs_stat(char* name, shared_region* stat_region, seL4_CPtr reply);
 void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t * fattr);

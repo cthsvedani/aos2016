@@ -25,7 +25,7 @@ void* outDev; //stdout device
 
 int sos_sleep(int msec, seL4_CPtr reply_cap);
 uint32_t sos_brk(long newbreak, pageDirectory * pd, region * heap);
-int sos_open(char* path, fdnode* fdtable, fd_mode mode);
+int sos_open(char* path, fdnode* fdtable, fd_mode mode, seL4_CPtr reply);
 int sos_close(fdnode* fdtable, int index);
 int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable);
 int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable);
