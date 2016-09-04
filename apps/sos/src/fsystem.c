@@ -232,7 +232,7 @@ void fs_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_
 		if(ok){
 			dprintf(0,"Permissions okay\n");
 			fd->file = (seL4_Word)malloc(sizeof(fhandle_t));
-			memcpy(fh, (void*)fd->file, sizeof(fhandle_t));
+			memcpy((void*)fd->file, fh, sizeof(fhandle_t));
 			seL4_SetMR(0, req->fdIndex);
 			dprintf(0, "Returning %d\n", req->fdIndex);
 		}
@@ -261,7 +261,7 @@ void fs_open_create(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t 
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
 	if(status == NFS_OK){
 			fd->file = (seL4_Word)malloc(sizeof(fhandle_t));
-			memcpy(fh, (void*)fd->file, sizeof(fhandle_t));
+			memcpy((void*)fd->file, fh, sizeof(fhandle_t));
 			seL4_SetMR(0, req->fdIndex);
 	}
 	else{
