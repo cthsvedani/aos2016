@@ -51,15 +51,15 @@ void sos_wake(uint32_t* id, void* data){
 	cspace_free_slot(cur_cspace, reply);
 }
 
-int sos_open(char* name, fdnode* fdtable, fd_mode mode){
+int sos_open(char* name, fdnode* fdtable, fd_mode mode, seL4_CPtr reply){
 	int fd = open_device(name, fdtable, mode);
-	dprintf(0, "fd found is %d\n", fd);
 	if(fd){
+		dprintf(0, "Found Device, stopping\n");
 		return fd;
-	} else {
-    return -1;
-    }
-	//We don't have a filesystem yet, so we only pass the string to the device list.
+	}
+	//Dispatch to NFS, which will reply
+	fs_open(name, fdtable, mode, reply);	
+	return -1;
 }
 
 int sos_close(fdnode* fdtable, int index){
@@ -155,6 +155,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 int handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 			seL4_Word user_addr = seL4_GetMR(1);
 			size_t count = seL4_GetMR(2);
+			count++; //Pesky null terminator!
 			shared_region * shared_region = get_shared_region(user_addr, count, pd, fdReadOnly);
 			char *buf = malloc(count*sizeof(char));
 			if(buf == NULL){
@@ -162,13 +163,16 @@ int handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 			}
 			get_shared_buffer(shared_region, count, buf);
 			dprintf(0,"Attempting Open\n");
-			int ret = sos_open(buf, fdtable, seL4_GetMR(3));
-			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
-			seL4_SetMR(0, ret);
-			seL4_Send(reply_cap, reply);
-			free(buf);
-			buf = NULL;
-			return 0;
+			int ret = sos_open(buf, fdtable, seL4_GetMR(3), reply_cap);
+			if(ret != -1){
+				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+				seL4_SetMR(0, ret);
+				seL4_Send(reply_cap, reply);
+				free(buf);
+				buf = NULL;
+				return 0;
+			}
+			return 1;
 }
 
 int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory * pd){

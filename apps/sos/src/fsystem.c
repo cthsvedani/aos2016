@@ -165,7 +165,7 @@ void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, ch
         size_t n = ((size_t)req->fdtable < 1024) ? (size_t)req->fdtable : 1024;
 		strncpy(req->kbuff, file_names[files], n);
         if(n == 1024) {
-            req->kbuff[1023] == '\0';
+            req->kbuff[1023] = '\0';
         }
 		put_to_shared_region(req->s_region, req->kbuff);
 		seL4_SetMR(0,strlen(req->kbuff));	
@@ -176,4 +176,101 @@ void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, ch
 	free_shared_region_list(req->s_region);
 	fs_free_index(t);
 	free((void*)token);
+}
+
+void fs_open(char* buff, fdnode* fdtable, fd_mode mode,seL4_CPtr reply){
+	uint32_t* index = malloc(sizeof(uint32_t));
+	if(!index){
+		//?!!?
+		dprintf(0,"malloc failed in fs_open\n");
+	}
+
+	*index = fs_next_index();
+	if(*index == -1){
+		dprintf(0,"No free NFS Indicies!\n");
+	}
+
+	for(int j = 3; j < MAX_FILES; j++){
+		if(fdtable[j].file == 0){ //This is safe in single threaded code, 
+			fdtable[j].file = 1;  //Might explode if multi-threaded.
+			fdtable[j].type = fdFile;
+			fdtable[j].permissions = mode;
+			fs_req[*index]->fdIndex = j;
+			break;
+		}
+	}
+
+	fs_req[*index]->fdtable = fdtable;
+	fs_req[*index]->kbuff = buff;
+	fs_req[*index]->reply = reply; 
+	nfs_lookup(&mnt_point, buff, fs_open_complete, (uintptr_t)index);
+}
+
+void fs_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr){
+	uint32_t * i = (uint32_t*) token;
+	fs_request* req = fs_req[*i];
+	if(status == NFSERR_NOENT){
+		sattr_t attr;
+		attr.mode = 6;
+		attr.uid = 0;
+		attr.gid = 0;
+		attr.size = 0;
+		nfs_create(&mnt_point, req->kbuff, &attr, fs_open_create, token);
+		return;
+	}
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
+	fdnode* fd = &(req->fdtable[req->fdIndex]);
+	if(status == NFS_OK){
+		int ok = 0;
+		//Compare permissions, save to fdtable, go home.
+		if(fd->permissions == fdReadOnly || fd->permissions == fdReadWrite){
+			ok = (fattr->mode & 4) ? 1 : 0;
+		}
+		if(fd->permissions == fdWriteOnly || fd->permissions == fdReadWrite){
+			ok = (fattr->mode & 2) ? 1 : 0;
+		}
+		if(ok){
+			dprintf(0,"Permissions okay\n");
+			fd->file = (seL4_Word)malloc(sizeof(fhandle_t));
+			memcpy(fh, (void*)fd->file, sizeof(fhandle_t));
+			seL4_SetMR(0, req->fdIndex);
+			dprintf(0, "Returning %d\n", req->fdIndex);
+		}
+		else{
+			dprintf(0, "Permission rejection\n");
+			fd->file = 0;
+			seL4_SetMR(0, -1);
+		}
+	}
+	else{
+		dprintf(0, "Something happened\n");
+		fd->file = 0;
+		seL4_SetMR(0, -1);
+	}
+	seL4_Send(req->reply, tag);
+	cspace_delete_cap(cur_cspace, req->reply);
+	free(req->kbuff);
+	fs_free_index(*i);
+	free(i);	
+}
+
+void fs_open_create(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr){
+	uint32_t * i = (uint32_t*) token;
+	fs_request* req = fs_req[*i];
+	fdnode* fd = &(req->fdtable[req->fdIndex]);
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
+	if(status == NFS_OK){
+			fd->file = (seL4_Word)malloc(sizeof(fhandle_t));
+			memcpy(fh, (void*)fd->file, sizeof(fhandle_t));
+			seL4_SetMR(0, req->fdIndex);
+	}
+	else{
+		seL4_SetMR(0, -1);
+		fd->file = 0;	
+	}
+	seL4_Send(req->reply, tag);
+	cspace_delete_cap(cur_cspace, req->reply);
+	free(req->kbuff);
+	fs_free_index(*i);
+	free(i);
 }
