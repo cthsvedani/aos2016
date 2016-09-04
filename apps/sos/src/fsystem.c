@@ -128,8 +128,11 @@ void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, ch
         assert(files < num_files);
         size_t n = ((size_t)req->fdtable < 1024) ? (size_t)req->fdtable : 1024;
 		strncpy(req->kbuff, file_names[files], n);
+        if(n == 1024) {
+            req->kbuff[1023] == '\0';
+        }
 		put_to_shared_region(req->s_region, req->kbuff);
-		seL4_SetMR(0,0);	
+		seL4_SetMR(0,strlen(req->kbuff));	
 	}
 	seL4_Send(req->reply, tag);
 	cspace_delete_cap(cur_cspace, req->reply);

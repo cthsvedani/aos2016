@@ -166,12 +166,13 @@ int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory * pd){
 		if(size < sizeof(stat_t)){
 			size = sizeof(stat_t);
 		}
-		shared_region * shared_region = get_shared_region(user_addr, count, pd, fdReadOnly);
+		shared_region * shared_region = get_shared_region(user_addr, count+1, pd, fdReadOnly);
 		char *buf = malloc(size*sizeof(char));//We need to make sure the buffer is big enough to take the return as well!
 		if(buf == NULL){
 			dprintf(0,"Malloc failed in sos_stat\n");
 		}
-		get_shared_buffer(shared_region, count, buf);
+		get_shared_buffer(shared_region, count+1, buf);
+        dprintf(0, "in sos_stat %s count is %d \n", buf,count);
 		//After extracting the string, we don't need the shared_region for the name anymore, we can store
 		//the shared region for the stat block instead.
 		free_shared_region_list(shared_region);	
