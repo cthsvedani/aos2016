@@ -154,18 +154,20 @@ void fs_open(char* buff, fdnode* fdtable, fd_mode mode,seL4_CPtr reply){
 		dprintf(0,"No free NFS Indicies!\n");
 	}
 
-	fs_req[*index]->fdtable = fdtable;
-	fs_req[*index]->kbuff = buff;
-	fs_req[*index]->reply = reply; 
-	nfs_lookup(&mnt_point, buff, fs_open_complete, (uintptr_t)index);
 	for(int j = 3; j < MAX_FILES; j++){
 		if(fdtable[j].file == 0){ //This is safe in single threaded code, 
 			fdtable[j].file = 1;  //Might explode if multi-threaded.
 			fdtable[j].type = fdFile;
 			fdtable[j].permissions = mode;
 			fs_req[*index]->fdIndex = j;
+			break;
 		}
 	}
+
+	fs_req[*index]->fdtable = fdtable;
+	fs_req[*index]->kbuff = buff;
+	fs_req[*index]->reply = reply; 
+	nfs_lookup(&mnt_point, buff, fs_open_complete, (uintptr_t)index);
 }
 
 void fs_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr){
@@ -196,6 +198,7 @@ void fs_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_
 			fd->file = (seL4_Word)malloc(sizeof(fhandle_t));
 			memcpy(fh, (void*)fd->file, sizeof(fhandle_t));
 			seL4_SetMR(0, req->fdIndex);
+			dprintf(0, "Returning %d\n", req->fdIndex);
 		}
 		else{
 			dprintf(0, "Permission rejection\n");
@@ -218,10 +221,20 @@ void fs_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_
 void fs_open_create(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr){
 	uint32_t * i = (uint32_t*) token;
 	fs_request* req = fs_req[*i];
+	fdnode* fd = &(req->fdtable[req->fdIndex]);
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
 	if(status == NFS_OK){
-
+			fd->file = (seL4_Word)malloc(sizeof(fhandle_t));
+			memcpy(fh, (void*)fd->file, sizeof(fhandle_t));
+			seL4_SetMR(0, req->fdIndex);
 	}
 	else{
-		//Fail
+		seL4_SetMR(0, -1);
+		fd->file = 0;	
 	}
+	seL4_Send(req->reply, tag);
+	cspace_delete_cap(cur_cspace, req->reply);
+	free(req->kbuff);
+	fs_free_index(*i);
+	free(i);
 }

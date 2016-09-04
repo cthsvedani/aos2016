@@ -47,8 +47,8 @@ void sos_wake(uint32_t* id, void* data){
 
 int sos_open(char* name, fdnode* fdtable, fd_mode mode, seL4_CPtr reply){
 	int fd = open_device(name, fdtable, mode);
-	dprintf(0, "fd found is %d\n", fd);
 	if(fd){
+		dprintf(0, "Found Device, stopping\n");
 		return fd;
 	}
 	//Dispatch to NFS, which will reply
@@ -144,6 +144,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 int handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 			seL4_Word user_addr = seL4_GetMR(1);
 			size_t count = seL4_GetMR(2);
+			count++; //Pesky null terminator!
 			shared_region * shared_region = get_shared_region(user_addr, count, pd, fdReadOnly);
 			char *buf = malloc(count*sizeof(char));
 			if(buf == NULL){

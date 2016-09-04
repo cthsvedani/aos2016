@@ -305,6 +305,7 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     char* elf_base;
     unsigned long elf_size;
 
+	memset(tty_test_process.fdtable, 0, sizeof(fdnode)*MAX_FILES);
     /* Create a VSpace */
 	tty_test_process.pd = pageTable_create();
 
