@@ -40,6 +40,42 @@ void fs_free_index(int i){
 	}
 }
 
+void fs_read(fhandle_t *handle, shared_region *stat_region, seL4_CPtr reply, size_t count, int offset){
+    dprintf(0, "In fs_read \n");
+    uint32_t *token = malloc(sizeof(uint32_t));
+    if(!token) {
+        conditional_panic(1, "fs_read");
+    }
+	*token = fs_next_index();
+	if(*token < 0){
+		dprintf(0, "Nope\n");
+		return;
+	}
+	fs_req[*token]->reply = reply;
+	fs_req[*token]->s_region = stat_region;
+
+    nfs_read(handle, offset, count, fs_read_complete, (uintptr_t)token);
+}
+
+void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int count, void *data){
+	dprintf(0, "In fs_read_complete\n");
+	uint32_t* i = (uint32_t*)token;
+    fs_request * req = fs_req[*i];
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
+	if(status == NFS_OK){
+		put_to_shared_region_n(req->s_region, (char*) data, count);
+		seL4_SetMR(0, count);
+	} else {
+		dprintf(0, "Failed with code %d\n", status);
+		seL4_SetMR(0, -1);
+	}
+	seL4_Send(req->reply, tag);
+	cspace_delete_cap(cur_cspace, req->reply);
+    free_shared_region_list(req->s_region);
+	fs_free_index(*i);
+	free(i);
+}
+
 void fs_stat(char* kbuff, shared_region* stat_region, seL4_CPtr reply){
 	dprintf(0, "In fs_stat\n");
 	uint32_t* token = malloc(sizeof(uint32_t));

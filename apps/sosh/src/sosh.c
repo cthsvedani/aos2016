@@ -24,16 +24,16 @@
 /* Your OS header file */
 #include <sos.h>
 
+#include "benchmark.h"
+
 #define BUF_SIZ    6144
-#define BUF_SIZE_DIV_3  2048
 #define MAX_ARGS   32
 
 static int in;
 static sos_stat_t sbuf;
-//int test_buffers(int console_fd);
 
 static void prstat(const char *name) {
-    // print out stat buf 
+    /* print out stat buf */
     printf("%c%c%c%c 0x%06x 0x%lx 0x%06lx %s\n",
             sbuf.st_type == ST_SPECIAL ? 's' : '-',
             sbuf.st_fmode & FM_READ ? 'r' : '-',
@@ -220,9 +220,9 @@ static int milli_sleep(int argc,char *argv[]) {
         return 1;
     }
     nanos = (uint64_t)atoi(argv[1]) * NS_IN_MS;
-    // Get whole seconds 
+    /* Get whole seconds */
     tv.tv_sec = nanos / NS_IN_S;
-    // Get nanos remaining 
+    /* Get nanos remaining */
     tv.tv_nsec = nanos % NS_IN_S;
     nanosleep(&tv, NULL);
     return 0;
@@ -252,6 +252,10 @@ static int kill(int argc, char *argv[]) {
     return sos_process_delete(pid);
 }
 
+static int benchmark(int argc, char *argv[]) {
+    return sos_benchmark();
+}
+
 struct command {
     char *name;
     int (*command)(int argc, char **argv);
@@ -259,25 +263,23 @@ struct command {
 
 struct command commands[] = { { "dir", dir }, { "ls", dir }, { "cat", cat }, {
         "cp", cp }, { "ps", ps }, { "exec", exec }, {"sleep",second_sleep}, {"msleep",milli_sleep},
-        {"time", second_time}, {"mtime", micro_time}, {"kill", kill} };
+        {"time", second_time}, {"mtime", micro_time}, {"kill", kill},
+        {"benchmark", benchmark}};
 
 int main(void) {
     char buf[BUF_SIZ];
     char *argv[MAX_ARGS];
     int i, r, done, found, new, argc;
     char *bp, *p;
-    printf("[SOS Starting]\n");
 
-    in = open("console", FM_READWRITE);
+    in = open("console", O_RDONLY);
     assert(in >= 0);
 
     bp = buf;
     done = 0;
     new = 1;
 
-    printf("[SOS Starting]\n");
-
-//    test_buffers(3);
+    printf("\n[SOS Starting]\n");
 
     while (!done) {
         if (new) {
@@ -287,7 +289,7 @@ int main(void) {
         found = 0;
 
         while (!found && !done) {
-            /*[> Make sure to flush so anything is visible while waiting for user input <]*/
+            /* Make sure to flush so anything is visible while waiting for user input */
             fflush(stdout);
             r = read(in, bp, BUF_SIZ - 1 + buf - bp);
             if (r < 0) {
@@ -295,18 +297,18 @@ int main(void) {
                 done = 1;
                 break;
             }
-            bp[r] = 0; //[> terminate <]
+            bp[r] = 0; /* terminate */
             for (p = bp; p < bp + r; p++) {
-                if (*p == '\03') { //[> ^C <]
+                if (*p == '\03') { /* ^C */
                     printf("^C\n");
                     p = buf;
                     new = 1;
                     break;
-                } else if (*p == '\04') { //[> ^D <]
+                } else if (*p == '\04') { /* ^D */
                     p++;
                     found = 1;
                 } else if (*p == '\010' || *p == 127) {
-                    //[> ^H and BS and DEL <]
+                    /* ^H and BS and DEL */
                     if (p > buf) {
                         printf("\010 \010");
                         p--;
@@ -314,7 +316,7 @@ int main(void) {
                     }
                     p--;
                     r--;
-                } else if (*p == '\n') { //[> ^J <]
+                } else if (*p == '\n') { /* ^J */
                     printf("%c", *p);
                     *p = 0;
                     found = p > buf;
@@ -339,12 +341,12 @@ int main(void) {
         p = buf;
 
         while (*p != '\0') {
-            /*[> Remove any leading spaces <]*/
+            /* Remove any leading spaces */
             while (*p == ' ')
                 p++;
             if (*p == '\0')
                 break;
-            argv[argc++] = p; //[> Start of the arg <]
+            argv[argc++] = p; /* Start of the arg */
             while (*p != ' ' && *p != '\0') {
                 p++;
             }
@@ -352,7 +354,7 @@ int main(void) {
             if (*p == '\0')
                 break;
 
-            /*[> Null out first space <]*/
+            /* Null out first space */
             *p = '\0';
             p++;
         }
@@ -371,15 +373,15 @@ int main(void) {
             }
         }
 
-        /*[> Didn't find a command <]*/
+        /* Didn't find a command */
         if (found == 0) {
-            //[> They might try to exec a program <]
+            /* They might try to exec a program */
             if (sos_stat(argv[0], &sbuf) != 0) {
                 printf("Command \"%s\" not found\n", argv[0]);
             } else if (!(sbuf.st_fmode & FM_EXEC)) {
                 printf("File \"%s\" not executable\n", argv[0]);
             } else {
-                /*[> Execute the program <]*/
+                /* Execute the program */
                 argc = 2;
                 argv[1] = argv[0];
                 argv[0] = "exec";
@@ -387,62 +389,5 @@ int main(void) {
             }
         }
     }
+    printf("[SOS Exiting]\n");
 }
-#define SMALL_BUF_SZ 2
-#define MEDIUM_BUF_SZ 2048
-
-   char test_str[] = "Basic test string for read/write\n";
-   char small_buf[SMALL_BUF_SZ];
-   char medium_buf[MEDIUM_BUF_SZ];
-
-int test_buffers(int console_fd) {
-   //test a small string from the code segment
-   int result = sos_sys_write(console_fd, test_str, strlen(test_str));
-   assert(result == strlen(test_str));
-
-   // test reading to a small buffer
-   printf("Enter 2 chars\n");
-   result = sos_sys_read(console_fd, small_buf, SMALL_BUF_SZ);
-   // make sure you type in at least SMALL_BUF_SZ
-   printf("result is %d\n", result);
-   assert(result == SMALL_BUF_SZ);
-
-   // test a reading into a large on-stack buffer
-   char stack_buf[BUF_SIZ];
-   // for this test you'll need to paste a lot of data into 
-   //the console, without newlines
-   printf("Enter 6144 chars\n");
-   result = sos_sys_read(console_fd, &stack_buf, BUF_SIZ);
-   printf("result is %d\n", result);
-   assert(result == BUF_SIZ);
-
-   printf("Writing 6144 bytes\n");
-   result = sos_sys_write(console_fd, &stack_buf, BUF_SIZ);
-   assert(result == BUF_SIZ);
-
-   sleep(10);
-
-   //this call to malloc should trigger an sbrk
-   char *heap_buf = malloc(BUF_SIZ);
-   assert(heap_buf != NULL);
-
-	printf("\n Malloc Run Now \n");
-
-   // for this test you'll need to paste a lot of data into 
-   //   the console, without newlines
-   result = sos_sys_read(console_fd, &heap_buf, BUF_SIZ);
-   assert(result == BUF_SIZ);
-
-   result = sos_sys_write(console_fd, &heap_buf, BUF_SIZ);
-   assert(result == BUF_SIZ);
-
-   // try sleeping
-   for (int i = 0; i < 5; i++) {
-       time_t prev_seconds = time(NULL);
-       sleep(1);
-       time_t next_seconds = time(NULL);
-       assert(next_seconds > prev_seconds);
-       printf("Tick\n");
-   }
-}
-

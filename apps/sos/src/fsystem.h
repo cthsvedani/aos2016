@@ -44,4 +44,6 @@ void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t
 void fs_getDirEnt(char* kbuff, shared_region* name_region, seL4_CPtr reply ,int position, size_t n);
 void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, char* file_names[], nfscookie_t nfscookie);
 
+void fs_read(fhandle_t *handle, shared_region *stat_region, seL4_CPtr reply, size_t count, int offset);
+void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int count, void *data);
 #endif

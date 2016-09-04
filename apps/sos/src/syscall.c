@@ -9,6 +9,12 @@
 #include "timer.h"
 #include "fsystem.h"
 
+static void return_reply(seL4_CPtr reply_cap, int ret) {
+    seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
+    seL4_SetMR(0, ret);
+    seL4_Send(reply_cap, reply);
+}
+
 int sos_sleep(int msec, seL4_CPtr reply_cap){
 	seL4_CPtr* data = malloc(sizeof(seL4_CPtr));
 	if(data == NULL){
@@ -50,8 +56,9 @@ int sos_open(char* name, fdnode* fdtable, fd_mode mode){
 	dprintf(0, "fd found is %d\n", fd);
 	if(fd){
 		return fd;
-	}
-	else return -1;
+	} else {
+    return -1;
+    }
 	//We don't have a filesystem yet, so we only pass the string to the device list.
 }
 
@@ -64,34 +71,40 @@ int sos_close(fdnode* fdtable, int index){
 }
 
 int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
-            dprintf(0, "in sos_sys_read\n");
-            seL4_Word user_addr = seL4_GetMR(2);
-            size_t count = seL4_GetMR(3);
-            shared_region *shared_region = get_shared_region(user_addr, count,
-                                                    pd, fdWriteOnly);
-            char *buf = malloc(sizeof(char) * count);
-			if(buf == NULL){
-				panic("Buf allocation failed in read\n");
-			}
-            get_shared_buffer(shared_region, count, buf);
-  
-			int file = seL4_GetMR(1);
-			if(file > 0 && file <= MAX_FILES){
-				fdDevice* dev = (fdDevice*)fdtable[file].file;
-		 	    if(fdtable[file].file != 0 && 
-						(fdtable[file].permissions == fdReadOnly || fdtable[file].permissions == fdReadWrite)){
-					dev->read(dev->device, buf, count, reply_cap, shared_region);
-				}
-				else{
-					seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
-					seL4_SetMR(0, 0);
-					seL4_Send(reply_cap, reply);
-					return 0;
-				} 
-		}
-	return 1;
-}
+    dprintf(0, "in sos_sys_read\n");
+    seL4_Word user_addr = seL4_GetMR(2);
+    size_t count = seL4_GetMR(3);
+    shared_region *shared_region = get_shared_region(user_addr, count,
+                                            pd, fdWriteOnly);
+    int file = seL4_GetMR(1);
 
+    if(file > 0 && file <= MAX_FILES){
+        fdnode *f_ptr = &fdtable[file];
+        if(!f_ptr && !(f_ptr->permissions == fdReadOnly || f_ptr->permissions == fdReadWrite)) {
+            dprintf(0, "file not found or wrong permissions \n");
+            free_shared_region_list(shared_region);
+            return_reply(reply_cap, -1);
+            return 0;
+        }
+        if(f_ptr->type == fdDev) {
+            char *buf = malloc(sizeof(char) * count);
+            if(buf == NULL){
+                panic("Buf allocation failed in read\n");
+            }
+            fdDevice* dev = (fdDevice*)fdtable[file].file;
+            get_shared_buffer(shared_region, count, buf);
+            dev->read(dev->device, buf, count, reply_cap, shared_region);
+        } else if(f_ptr->type == fdFile) {
+            fs_read((fhandle_t*)f_ptr->file, shared_region, reply_cap, count, f_ptr->offset);
+        } else {
+            free_shared_region_list(shared_region);
+            return_reply(reply_cap, -1);
+            return 0;
+        }
+    }
+
+    return 1;
+}
 
 int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             seL4_Word user_addr = seL4_GetMR(2);

@@ -39,6 +39,7 @@ typedef struct {
 	fd_mode permissions;
 	fd_type type;
 	seL4_Word file;//fdDev* if device, handle if NFS			
+    int offset;
 } fdnode;
 
 void register_device(void* newDev, char* str, read_t read, int maxReaders, write_t write, int maxWriters);

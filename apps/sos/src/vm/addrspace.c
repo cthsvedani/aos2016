@@ -178,6 +178,26 @@ void put_to_shared_region(shared_region *shared_region, char *buf) {
     dprintf(0, "put_to_shared exiting \n");
 }
 
+void put_to_shared_region_n(shared_region *shared_region, char *buf, size_t n) {
+    uint32_t buffer_index = 0;
+    dprintf(0, "put_to_shared_n entered \n");
+    while(shared_region && (n > 0)) {
+        dprintf(0, "region vbase is %x, with size %d\n", shared_region->vbase, shared_region->size);
+        dprintf(0, "kernel buf is %x\n", buf);
+        if(n >= shared_region->size) {
+            memcpy((void *)shared_region->vbase, buf + buffer_index, shared_region->size);
+            n -= shared_region->size;
+        } else { 
+            memcpy((void *)shared_region->vbase, buf + buffer_index, n);
+            n = 0;
+        }
+
+        buffer_index += shared_region->size;
+        shared_region = shared_region->next;
+    }
+    dprintf(0, "put_to_shared exiting \n");
+}
+
 shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode) {
     //Reuse region structs to define our regions of memory
     shared_region *head = malloc(sizeof(shared_region));
