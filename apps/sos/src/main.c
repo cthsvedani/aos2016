@@ -171,6 +171,11 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		blocking = handle_sos_stat(reply_cap, tty_test_process.pd);
 		break;
 	}
+    case SOS_SYS_GETDIRENT:
+    {
+        blocking = handle_sos_getdirent(reply_cap, tty_test_process.pd);
+        break;
+    }
     default:
         dprintf(0, "Unknown syscall %d\n", syscall_number);
         /* we don't want to reply to an unknown syscall */

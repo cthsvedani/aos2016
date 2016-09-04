@@ -17,7 +17,7 @@ int sos_sleep(int msec, seL4_CPtr reply_cap){
 	}
 
 	*data = reply_cap;
-	uint32_t timer = register_timer(msec * 1000, (timer_callback_t)sos_wake, (void*)data);
+	register_timer(msec * 1000, (timer_callback_t)sos_wake, (void*)data);
 
 	return 0;
 }
@@ -179,3 +179,13 @@ int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory * pd){
 		fs_stat(buf, shared_region, reply_cap);
 		return 1;
 } 
+
+int handle_sos_getdirent(seL4_CPtr reply_cap, pageDirectory * pd){
+		seL4_Word user_addr = seL4_GetMR(1);
+		size_t count = seL4_GetMR(2);
+		int pos = seL4_GetMR(3);
+		shared_region * shared_region = get_shared_region(user_addr, count, pd, fdReadOnly);
+        char *buf = malloc(count*sizeof(char));
+		fs_getDirEnt(buf, shared_region, reply_cap, pos, count);
+		return 1;
+}

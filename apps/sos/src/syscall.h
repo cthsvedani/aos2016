@@ -13,6 +13,7 @@
 #define SOS_SYS_CLOSE 3
 
 #define SOS_SYS_STAT 100
+#define SOS_SYS_GETDIRENT 101
 
 #define SOS_SYS_SLEEP 126
 #define SOS_SYS_WRITE 114
@@ -32,4 +33,5 @@ void sos_wake(uint32_t* id, void* data);
 int handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable);
 
 int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory* pd);
+int handle_sos_getdirent(seL4_CPtr reply_cap, pageDirectory* pd);
 #endif

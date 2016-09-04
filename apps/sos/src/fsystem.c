@@ -110,6 +110,7 @@ void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, ch
 	uint32_t t = *(uint32_t*)token;
 	t = (t << 24) >> 24; //Drop the upper 24 bits
 	fs_request* req = fs_req[t];
+
 	uint32_t files = ((*(uint32_t*)token) >> 8) + num_files;
 	if(nfscookie != 0 && files < req->fdIndex){
 		t += files << 8;
@@ -120,10 +121,13 @@ void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, ch
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
 	if(nfscookie == 0 && files < req->fdIndex){
 		seL4_SetMR(0, -1);	
-	}
-	else{
-		files = (files - num_files) + (size_t)req->fdtable; //!!!
-		strncpy(req->kbuff, file_names[files], 1024);
+	} else if(files == req->fdIndex) {
+        seL4_SetMR(0, 0);
+    } else {
+		files = req->fdIndex - (files - num_files);//!!!
+        assert(files < num_files);
+        size_t n = ((size_t)req->fdtable < 1024) ? (size_t)req->fdtable : 1024;
+		strncpy(req->kbuff, file_names[files], n);
 		put_to_shared_region(req->s_region, req->kbuff);
 		seL4_SetMR(0,0);	
 	}

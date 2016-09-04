@@ -23,7 +23,7 @@ int sos_sys_open(const char *path, fmode_t mode) {
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,4);
 	int count = strlen(path);
 	seL4_SetMR(0, SOS_SYS_OPEN);
-	seL4_SetMR(1, path);
+	seL4_SetMR(1, (seL4_Word)path);
 	seL4_SetMR(2, count);
 	seL4_SetMR(3, mode);
 	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
@@ -34,7 +34,7 @@ int sos_sys_read(int file, char *buf, size_t nbyte) {
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,4);
     seL4_SetMR(0, SOS_SYS_READ);
 	seL4_SetMR(1, file);
-	seL4_SetMR(2, buf);
+	seL4_SetMR(2, (seL4_Word)buf);
 	seL4_SetMR(3, nbyte);
 	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
     return seL4_GetMR(0);
@@ -47,7 +47,7 @@ int sos_sys_write(int file, const char *buf, size_t nbyte){
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,4);
     seL4_SetMR(0, SOS_SYS_WRITE);
 	seL4_SetMR(1, file);
-	seL4_SetMR(2, buf);
+	seL4_SetMR(2, (seL4_Word)buf);
 	seL4_SetMR(3, nbyte);
 	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
     return seL4_GetMR(0);
@@ -84,16 +84,21 @@ int sos_sys_close(int file){
 }
 
 int sos_getdirent(int pos, char *name, size_t nbyte){
-	printf("system call not implemented.\n");
-	return 0;
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,4);
+	seL4_SetMR(0, SOS_SYS_GETDIRENT);
+	seL4_SetMR(1, (seL4_Word) name);
+	seL4_SetMR(2, nbyte);
+	seL4_SetMR(3, pos);
+	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+	return seL4_GetMR(0);
 }
 
 int sos_stat(const char *path, sos_stat_t *buf){
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,4);
 	seL4_SetMR(0, SOS_SYS_STAT);
-	seL4_SetMR(1, path);
+	seL4_SetMR(1, (seL4_Word)path);
 	seL4_SetMR(2, strnlen(path, 1024));
-	seL4_SetMR(3, buf);
+	seL4_SetMR(3, (seL4_Word)buf);
 	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
 	return seL4_GetMR(0);
 }
