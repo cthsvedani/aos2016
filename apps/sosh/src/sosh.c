@@ -71,6 +71,7 @@ static int cat(int argc, char **argv) {
         return 1;
     }
 
+    close(fd);
 
     return 0;
 }
@@ -287,6 +288,7 @@ static int test_read_onebyte(int argc, char **argv) {
         return 1;
     }
 
+    close(fd);
 
     return 0;
 }

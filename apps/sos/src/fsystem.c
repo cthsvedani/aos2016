@@ -48,7 +48,7 @@ void fs_free_index(int i){
 }
 
 void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t count, int offset){
-    dprintf(0, "In fs_read \n");
+    dprintf(0, "In fs_read, count is %d \n", count);
     uint32_t *token = malloc(sizeof(uint32_t));
     if(!token) {
 		reply_failed(reply);
@@ -61,6 +61,8 @@ void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t 
 	fs_req[*token]->reply = reply;
 	fs_req[*token]->s_region = stat_region;
     fs_req[*token]->fdtable = f_ptr;
+    fs_req[*token]->count = count;
+    fs_req[*token]->read = 0;
 
     rpc_stat_t  ret = nfs_read((fhandle_t*)f_ptr->file, offset, count, fs_read_complete, (uintptr_t)token);
     if(ret != RPC_OK) {
@@ -70,19 +72,26 @@ void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t 
 }
 
 void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int count, void *data){
-	dprintf(0, "In fs_read_complete\n");
+	dprintf(0, "In fs_read_complete, read %d bytes \n", count);
 	uint32_t* i = (uint32_t*)token;
     fs_request * req = fs_req[*i];
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
 	if(status == NFS_OK){
-		put_to_shared_region_n(req->s_region, (char*) data, count);
-		seL4_SetMR(0, count);
+        req->fdtable->offset += count;
+        /*put_to_shared_region_n(&(req->s_region), (char*) data, count);*/
+        put_to_shared_region(req->s_region, (char*) data);
+        req->count -= count;
+        req->read += count;
+        if((req->count > 0) && (count == MAX_REQUEST_SIZE)) {
+            nfs_read((fhandle_t *)req->fdtable, req->fdtable->offset, (count > MAX_REQUEST_SIZE) ? MAX_REQUEST_SIZE : count, fs_read_complete, (uintptr_t)token);
+            return;
+        }
+		seL4_SetMR(0, req->read);
 	} else {
 		dprintf(0, "Failed with code %d\n", status);
 		seL4_SetMR(0, -1);
 	}
-    req->fdtable->offset += count;
-    dprintf(0, "returning %d bytes read from read \n", count);
+    dprintf(0, "returning %d bytes read from read \n", seL4_GetMR(0));
 	seL4_Send(req->reply, tag);
 	cspace_delete_cap(cur_cspace, req->reply);
     free_shared_region_list(req->s_region);
