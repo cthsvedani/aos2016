@@ -3,7 +3,7 @@
 
 #include <sys/stat.h>
 
-#define verbose 0 
+#define verbose 0
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -350,34 +350,33 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 		reply_failed(reply);
 		return;
 	}
-	size_t size = reg->size;
-	if(size > 1024){
-		size = 1024;
-	}
 	fs_req[*i]->reply = reply;
 	fs_req[*i]->fdIndex = count;
 	fs_req[*i]->fdtable = f_ptr;	
 	fs_req[*i]->data = 0;
 	fs_req[*i]->count = 0;
+	fs_req[*i]->kbuff = (char*)reg;
 
 	for(int j = 0; j < WRITE_MULTI; j++){
+		size_t size = reg->size;
+		if(size > 1024){
+			size = 1024;
+		}
 		if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)reg->vbase,
-						 fs_write_complete, (uintptr_t)i) != RPC_OK){
-		
-		assert(!"Oh No");
+						 fs_write_complete, (uintptr_t)i) == RPC_OK){
+			reg->size -= size;
+			reg->vbase += size;
+			if(reg->size <= 0){	
+				reg = reg->next;
+			}
+			f_ptr->offset += size;
+			fs_req[*i]->count++;
+			fs_req[*i]->s_region = reg;
+			if(!reg) break;
 		}
-		dprintf(0, "Dispatched! \n");
-		reg->size -= size;
-		reg->vbase += size;
-		if(reg->size == 0){	
-			shared_region * tmp = reg;
-			reg = reg->next;
-			free(tmp);	
+		else{
+			assert(!"Oh No");
 		}
-		f_ptr->offset += size;
-		fs_req[*i]->count++;
-		fs_req[*i]->s_region = reg;
-		if(!reg) break;
 	}
 }
 
@@ -387,7 +386,6 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 	fdnode * fd = req->fdtable;
 	seL4_MessageInfo_t tag;	
 	req->data += count;
-	dprintf(0, "In write_complete\n");
 	if(status == NFS_OK){
 		if(req->s_region != NULL){
 			size_t size = req->s_region->size;
@@ -398,18 +396,15 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 					(void*)req->s_region->vbase, fs_write_complete, (uintptr_t)i);
 			req->s_region->size -= size;
 			req->s_region->vbase += size;
-			if(req->s_region->size == 0){
-				shared_region * reg = req->s_region;
-				fs_req[*i]->s_region = reg->next;
-				free(reg);	
+			if(req->s_region->size <= 0){
+				req->s_region = req->s_region->next;
 			}
 			fd->offset += size;	
 			return;	
 		}
 		else{
-			dprintf(0, "Bedtime\n");
 			req->count--;
-			if(req->count != 0){
+			if(req->count != 0){				
 				return;
 			}
 		}
@@ -422,6 +417,7 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 	}
 	seL4_Send(fs_req[*i]->reply, tag);
 	cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
+	free_shared_region_list((shared_region*)fs_req[*i]->kbuff);
 	fs_free_index(*i);
 	free(i);
 }
