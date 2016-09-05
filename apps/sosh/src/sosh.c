@@ -71,7 +71,6 @@ static int cat(int argc, char **argv) {
         return 1;
     }
 
-    close(fd);
 
     return 0;
 }
@@ -259,6 +258,39 @@ static int benchmark(int argc, char *argv[]) {
     return sos_benchmark();
 }
 
+static int test_read_onebyte(int argc, char **argv) {
+    int fd;
+    char buf[BUF_SIZ];
+    int num_read, stdout_fd, num_written = 0;
+
+
+    if (argc != 2) {
+        printf("Usage: cat filename\n");
+        return 1;
+    }
+
+    printf("<%s>\n", argv[1]);
+
+    fd = open(argv[1], O_RDONLY);
+    stdout_fd = open("console", O_WRONLY);
+
+    assert(fd >= 0);
+
+    while ((num_read = read(fd, buf, 1)) > 0) {
+        num_written = write(stdout_fd, buf, num_read);
+    }
+
+    close(stdout_fd);
+
+    if (num_read == -1 || num_written == -1) {
+        printf("error on write\n");
+        return 1;
+    }
+
+
+    return 0;
+}
+
 struct command {
     char *name;
     int (*command)(int argc, char **argv);
@@ -267,7 +299,7 @@ struct command {
 struct command commands[] = { { "dir", dir }, { "ls", dir }, { "cat", cat }, {
         "cp", cp }, { "ps", ps }, { "exec", exec }, {"sleep",second_sleep}, {"msleep",milli_sleep},
         {"time", second_time}, {"mtime", micro_time}, {"kill", kill},
-        {"benchmark", benchmark}};
+        {"benchmark", benchmark},{"tro", test_read_onebyte}};
 
 int main(void) {
     char buf[BUF_SIZ];
