@@ -38,7 +38,7 @@ fdDevice fdDevices[MAX_IO_DEVICES];
 typedef struct {
 	fd_mode permissions;
 	fd_type type;
-	seL4_Word file;//fdDev* if device, handle if NFS			
+	seL4_Word file;//fdDev* if device, fhandle_t* if NFS			
     int offset;
 } fdnode;
 

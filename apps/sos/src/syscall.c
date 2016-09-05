@@ -66,7 +66,11 @@ int sos_close(fdnode* fdtable, int index){
     dprintf(0, "in sos_close, fd index %d \n", index);
 	if(index < 0 || index > MAX_FILES) return 0; //The index doesn't make sense, ignore it.
 	if(fdtable[index].file != 0){
-		close_device(fdtable, index); //We don't have a file system, Only care about devices.
+		if(fdtable[index].type == fdDev){
+			close_device(fdtable, index); //We don't have a file system, Only care about devices.
+		} else {
+			fs_close(fdtable, index);
+		}
 	}
 	return 0;
 }
@@ -208,3 +212,4 @@ int handle_sos_getdirent(seL4_CPtr reply_cap, pageDirectory * pd){
 		fs_getDirEnt(buf, shared_region, reply_cap, pos, count);
 		return 1;
 }
+

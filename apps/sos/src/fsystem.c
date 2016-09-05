@@ -7,6 +7,13 @@
 
 extern fhandle_t mnt_point;
 
+void reply_failed(seL4_CPtr reply){
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
+	seL4_SetMR(0,-1);
+	seL4_Send(reply, tag);
+	cspace_delete_cap(cur_cspace, reply);
+}
+
 void fsystemStart(){
 	assert(MAX_NFS_REQUESTS < 256); //We store some data in the higher bits of our nfs token.
 								 //Make sure it's seperate from our fs_request index!
@@ -44,11 +51,11 @@ void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t 
     dprintf(0, "In fs_read \n");
     uint32_t *token = malloc(sizeof(uint32_t));
     if(!token) {
-        conditional_panic(1, "fs_read");
+		reply_failed(reply);
     }
 	*token = fs_next_index();
 	if(*token < 0){
-		dprintf(0, "Nope\n");
+		reply_failed(reply);
 		return;
 	}
 	fs_req[*token]->reply = reply;
@@ -83,11 +90,11 @@ void fs_stat(char* kbuff, shared_region* stat_region, seL4_CPtr reply){
 	dprintf(0, "In fs_stat\n");
 	uint32_t* token = malloc(sizeof(uint32_t));
 	if(!token){
-		conditional_panic(1,"fs_stat\n");
+		reply_failed(reply);
 	}
 	*token = fs_next_index();
 	if(*token < 0){
-		dprintf(0, "Nope\n");
+		reply_failed(reply);
 		return;
 	}
 	fs_req[*token]->reply = reply;
@@ -128,10 +135,12 @@ void fs_getDirEnt(char* kbuff, shared_region * name_region, seL4_CPtr reply, int
 	dprintf(0, "In fs_getDirEnt\n");
 	uint32_t* token = malloc(sizeof(uint32_t));
 	if(!token){
+		reply_failed(reply);
 		conditional_panic(1,"fs_getDirEnt\n");
 	}
 	*token = fs_next_index();
 	if(*token < 0){
+		reply_failed(reply);
 		dprintf(0, "Nope\n");
 		return;
 	}
@@ -184,16 +193,20 @@ void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, ch
 void fs_open(char* buff, fdnode* fdtable, fd_mode mode,seL4_CPtr reply){
 	uint32_t* index = malloc(sizeof(uint32_t));
 	if(!index){
-		//?!!?
 		dprintf(0,"malloc failed in fs_open\n");
+		reply_failed(reply);
+		return;
 	}
 
 	*index = fs_next_index();
 	if(*index == -1){
+		free(index);
 		dprintf(0,"No free NFS Indicies!\n");
+		reply_failed(reply);
+		return;
 	}
-
-	for(int j = 3; j < MAX_FILES; j++){
+	int j;
+	for(j = 3; j < MAX_FILES; j++){
 		if(fdtable[j].file == 0){ //This is safe in single threaded code, 
 			fdtable[j].file = 1;  //Might explode if multi-threaded.
 			fdtable[j].type = fdFile;
@@ -202,6 +215,12 @@ void fs_open(char* buff, fdnode* fdtable, fd_mode mode,seL4_CPtr reply){
 			break;
 		}
 	}
+	if(j == MAX_FILES){
+		fs_free_index(*index);
+		free(index);
+		reply_failed(reply);
+	}
+	
 
 	fs_req[*index]->fdtable = fdtable;
 	fs_req[*index]->kbuff = buff;
@@ -276,4 +295,14 @@ void fs_open_create(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t 
 	free(req->kbuff);
 	fs_free_index(*i);
 	free(i);
+}
+//Index validation must be done before calling fs_close!
+void fs_close(fdnode* fdtable, int index){
+	//Since the NFS is stateless, all we need to do is forget the fhandle, and clear our own bookkeeping.
+	//If filesystem caching is implemented, we should flush the cache here.
+	fdtable[index].type = 0;
+	free((void*)fdtable[index].file);
+	fdtable[index].file = 0;
+	fdtable[index].offset = 0;
+	fdtable[index].permissions = 0;
 }
