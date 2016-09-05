@@ -62,7 +62,11 @@ void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t 
 	fs_req[*token]->s_region = stat_region;
     fs_req[*token]->fdtable = f_ptr;
 
-    nfs_read((fhandle_t*)f_ptr->file, offset, count, fs_read_complete, (uintptr_t)token);
+    rpc_stat_t  ret = nfs_read((fhandle_t*)f_ptr->file, offset, count, fs_read_complete, (uintptr_t)token);
+    if(ret != RPC_OK) {
+		dprintf(0, "Failed with code %d\n", ret);
+    } 
+    dprintf(0, "fs_read returned with code %d\n", ret);
 }
 
 void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int count, void *data){
