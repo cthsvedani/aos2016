@@ -316,10 +316,10 @@ void fs_close(fdnode* fdtable, int index){
 	fdtable[index].permissions = 0;
 }
 
-void fs_write(fdnode* f_ptr, char* buff, size_t count, seL4_CPtr reply, int offset){
+void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, int offset){
 	uint32_t * i =	malloc(sizeof(uint32_t));
 	if(i == NULL){
-		free(buff);
+		free_shared_region_list(reg);
 		reply_failed(reply);
 		return;	
 	}
@@ -327,34 +327,72 @@ void fs_write(fdnode* f_ptr, char* buff, size_t count, seL4_CPtr reply, int offs
 	*i =  fs_next_index();
 	if(*i == -1){
 		free(i);
-		free(buff);
+		free_shared_region_list(reg);
 		reply_failed(reply);
 		return;
 	}
-	fs_req[*i]->kbuff = buff;
+	size_t size = reg->size;
+	if(size > 1024){
+		size = 1024;
+	}
 	fs_req[*i]->reply = reply;
-	fs_req[*i]->fdIndex = count;	
-	
-	if(nfs_write((fhandle_t*)f_ptr->file, offset, count, buff, fs_write_complete, (uintptr_t)i) != RPC_OK){
+	fs_req[*i]->fdIndex = count;
+	fs_req[*i]->fdtable = f_ptr;	
+	fs_req[*i]->data = 0;
+
+	if(nfs_write((fhandle_t*)f_ptr->file, offset, reg->size, (void*)reg->vbase,
+					 fs_write_complete, (uintptr_t)i) != RPC_OK){
 		fs_free_index(*i);
 		free(i);
-		free(buff);
+		free_shared_region_list(reg);
 		reply_failed(reply);
-	}	
+	}
+	if(size == 1024){
+		reg->size -= 1024;
+		reg->vbase += 1024;
+		fs_req[*i]->s_region = reg;
+	}
+	else{
+		fs_req[*i]->s_region = reg->next;
+		free(reg);	
+	}
 }
 
 void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int count){
 	uint32_t * i = (uint32_t*) token;
-	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);	
+	fs_request * req = fs_req[*i];
+	req->data += count;
+	fdnode * fd = req->fdtable;
+	fd->offset += count;
+	seL4_MessageInfo_t tag;	
 	if(status == NFS_OK){
-		seL4_SetMR(0, fs_req[*i]->fdIndex);
+		if(req->s_region != NULL){
+			size_t size = req->s_region->size;
+			if(size > 1024){
+				size = 1024;
+			}
+			nfs_write((fhandle_t*)(fd->file), fd->offset, size,
+					(void*)req->s_region->vbase, fs_write_complete, (uintptr_t)i);
+			if(size == 1024){
+				req->s_region->size -= 1024;
+				req->s_region->vbase += 1024;
+			}
+			else{
+				shared_region * reg = req->s_region;
+				fs_req[*i]->s_region = reg->next;
+				free(reg);	
+			}
+			return;	
+		}
+		tag = seL4_MessageInfo_new(0,0,0,1);
+		seL4_SetMR(0, req->data);
 	}
 	else{
+		tag = seL4_MessageInfo_new(0,0,0,1);
 		seL4_SetMR(0, -1);
 	}
 	seL4_Send(fs_req[*i]->reply, tag);
 	cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
-	free(fs_req[*i]->kbuff);
 	fs_free_index(*i);
 	free(i);
 }

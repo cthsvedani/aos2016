@@ -123,39 +123,39 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 				seL4_Send(reply_cap, reply);
 			return 0;		
 	}
-            char *buf = malloc(sizeof(char) * count);
-			if(buf == NULL){
-				dprintf(0,"Malloc failed in sys_write\n");
-			}
-            get_shared_buffer(shared_region, count, buf);
             /*dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",*/
                    /*seL4_GetMR(1), count); */
 
 			int ret = -1;
 			int file = seL4_GetMR(1);
 			if(file > 0 && file <= MAX_FILES){
-				fdDevice* dev = (fdDevice*)fdtable[file].file;
 				if(fdtable[file].file != 0 && 
 						(fdtable[file].permissions == fdWriteOnly || fdtable[file].permissions == fdReadWrite)){
-					if(fdtable[file].type == fdDev){
+						if(fdtable[file].type == fdDev){
+							fdDevice* dev = (fdDevice*)fdtable[file].file;
+							char *buf = malloc(sizeof(char) * count);
+							if(buf == NULL){
+								dprintf(0,"Malloc failed in sys_write\n");
+							}
+							get_shared_buffer(shared_region, count, buf);
 							ret = dev->write(dev->device, buf, count);
+							free(buf);
 					}
 					else{
-						fs_write(&fdtable[file], buf, count, reply_cap, fdtable[file].offset);
-						free_shared_region_list(shared_region);
+						fs_write(&(fdtable[file]), shared_region, count, reply_cap, fdtable[file].offset);
 						return 1;
 					}
 					
 				} 
-			}
-			
-			else if(file == 0){
+			}else if(file == 0){
+				char *buf = malloc(sizeof(char) * count);
+				if(buf == NULL){
+					dprintf(0,"Malloc failed in sys_write\n");
+				}
+				get_shared_buffer(shared_region, count, buf);
 				out(outDev, buf, count);
+				free(buf);
 			}
-
-            //need to free whole mem
-            free(buf);
-			buf = NULL;
 
             /*dprintf(0, "ret is %d\n", ret);*/
             seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);

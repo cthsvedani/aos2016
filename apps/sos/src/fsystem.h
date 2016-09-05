@@ -17,6 +17,7 @@ typedef struct request{
 	fdnode* fdtable;
 	int fdIndex;
 	shared_region* s_region;
+	int data;
 }fs_request;
 
 typedef struct {
@@ -41,7 +42,7 @@ void fs_open_create(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t 
 
 void fs_close(fdnode* fdtable, int index);
 
-void fs_write(fdnode* f_ptr, char* buff, size_t count, seL4_CPtr reply, int offset);
+void fs_write(fdnode* f_ptr, shared_region * reg, size_t count, seL4_CPtr reply, int offset);
 void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int count);
 
 void fs_stat(char* name, shared_region* stat_region, seL4_CPtr reply);
