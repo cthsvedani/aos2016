@@ -361,19 +361,20 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 	fs_req[*i]->count = 0;
 
 	for(int j = 0; j < WRITE_MULTI; j++){
-		if(nfs_write((fhandle_t*)f_ptr->file, offset, size, (void*)reg->vbase,
+		if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)reg->vbase,
 						 fs_write_complete, (uintptr_t)i) != RPC_OK){
+		
+		assert(!"Oh No");
 		}
-		if(size == 1024){
-			reg->size -= 1024;
-			reg->vbase += 1024;
-		}
-		else{
+		dprintf(0, "Dispatched! \n");
+		reg->size -= size;
+		reg->vbase += size;
+		if(reg->size == 0){	
 			shared_region * tmp = reg;
 			reg = reg->next;
 			free(tmp);	
 		}
-		f_ptr->offset += count;
+		f_ptr->offset += size;
 		fs_req[*i]->count++;
 		fs_req[*i]->s_region = reg;
 		if(!reg) break;
@@ -385,6 +386,8 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 	fs_request * req = fs_req[*i];
 	fdnode * fd = req->fdtable;
 	seL4_MessageInfo_t tag;	
+	req->data += count;
+	dprintf(0, "In write_complete\n");
 	if(status == NFS_OK){
 		if(req->s_region != NULL){
 			size_t size = req->s_region->size;
@@ -393,19 +396,18 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 			}
 			nfs_write((fhandle_t*)(fd->file), fd->offset, size,
 					(void*)req->s_region->vbase, fs_write_complete, (uintptr_t)i);
-			if(size == 1024){
-				req->s_region->size -= 1024;
-				req->s_region->vbase += 1024;
-			}
-			else{
+			req->s_region->size -= size;
+			req->s_region->vbase += size;
+			if(req->s_region->size == 0){
 				shared_region * reg = req->s_region;
 				fs_req[*i]->s_region = reg->next;
 				free(reg);	
 			}
-			fd->offset += 1024;	
+			fd->offset += size;	
 			return;	
 		}
 		else{
+			dprintf(0, "Bedtime\n");
 			req->count--;
 			if(req->count != 0){
 				return;
