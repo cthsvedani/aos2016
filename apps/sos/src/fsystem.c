@@ -1,6 +1,8 @@
 #include "fsystem.h"
 #include "nfs/nfs.h"
 
+#include <sys/stat.h>
+
 #define verbose 0 
 #include <sys/debug.h>
 #include <sys/panic.h>
@@ -127,12 +129,17 @@ void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t
 	if(status == NFS_OK){
 		fs_request * req = fs_req[*i];
 		stat_t* ret = (stat_t*)req->kbuff;
-		ret->st_type = fattr->type;	
+		if(S_ISREG(fattr->mode)){
+			ret->st_type = 1;
+		}
+		else{
+			ret->st_type = 2;
+		}
 		ret->st_fmode = fattr->mode;
 		ret->st_size = fattr->size;
 		uint64_t time = time_stamp()/1000;
-		ret->st_ctime = time;
-		ret->st_atime = time;
+		ret->st_crtime = time;
+		ret->st_actime = time;
 		put_to_shared_region(req->s_region, (char*) ret);
 		seL4_SetMR(0, 0);
 	}

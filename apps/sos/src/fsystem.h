@@ -27,8 +27,8 @@ typedef struct {
   int		 st_type;    /* file type */
   int		 st_fmode;   /* access mode */
   unsigned	 st_size;    /* file size in bytes */
-  long		 st_ctime;   /* file creation time (ms since booting) */
-  long		 st_atime;   /* file last access (open) time (ms since booting) */
+  long		 st_crtime;   /* file creation time (ms since booting) */
+  long		 st_actime;   /* file last access (open) time (ms since booting) */
 } stat_t;
 
 fs_request * fs_req[MAX_NFS_REQUESTS];
