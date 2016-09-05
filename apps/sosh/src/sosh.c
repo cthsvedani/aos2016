@@ -60,8 +60,9 @@ static int cat(int argc, char **argv) {
 
     assert(fd >= 0);
 
-    while ((num_read = read(fd, buf, BUF_SIZ)) > 0)
+    while ((num_read = read(fd, buf, BUF_SIZ)) > 0) {
         num_written = write(stdout_fd, buf, num_read);
+    }
 
     close(stdout_fd);
 
@@ -69,6 +70,8 @@ static int cat(int argc, char **argv) {
         printf("error on write\n");
         return 1;
     }
+
+    close(fd);
 
     return 0;
 }

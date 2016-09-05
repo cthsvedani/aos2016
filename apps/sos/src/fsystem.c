@@ -40,7 +40,7 @@ void fs_free_index(int i){
 	}
 }
 
-void fs_read(fhandle_t *handle, shared_region *stat_region, seL4_CPtr reply, size_t count, int offset){
+void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t count, int offset){
     dprintf(0, "In fs_read \n");
     uint32_t *token = malloc(sizeof(uint32_t));
     if(!token) {
@@ -53,8 +53,9 @@ void fs_read(fhandle_t *handle, shared_region *stat_region, seL4_CPtr reply, siz
 	}
 	fs_req[*token]->reply = reply;
 	fs_req[*token]->s_region = stat_region;
+    fs_req[*token]->fdtable = f_ptr;
 
-    nfs_read(handle, offset, count, fs_read_complete, (uintptr_t)token);
+    nfs_read((fhandle_t*)f_ptr->file, offset, count, fs_read_complete, (uintptr_t)token);
 }
 
 void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int count, void *data){
@@ -69,6 +70,8 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 		dprintf(0, "Failed with code %d\n", status);
 		seL4_SetMR(0, -1);
 	}
+    req->fdtable->offset += count;
+    dprintf(0, "returning %d bytes read from read \n", count);
 	seL4_Send(req->reply, tag);
 	cspace_delete_cap(cur_cspace, req->reply);
     free_shared_region_list(req->s_region);

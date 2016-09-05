@@ -63,6 +63,7 @@ int sos_open(char* name, fdnode* fdtable, fd_mode mode, seL4_CPtr reply){
 }
 
 int sos_close(fdnode* fdtable, int index){
+    dprintf(0, "in sos_close, fd index %d \n", index);
 	if(index < 0 || index > MAX_FILES) return 0; //The index doesn't make sense, ignore it.
 	if(fdtable[index].file != 0){
 		close_device(fdtable, index); //We don't have a file system, Only care about devices.
@@ -71,13 +72,13 @@ int sos_close(fdnode* fdtable, int index){
 }
 
 int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
-    dprintf(0, "in sos_sys_read\n");
     seL4_Word user_addr = seL4_GetMR(2);
     size_t count = seL4_GetMR(3);
     shared_region *shared_region = get_shared_region(user_addr, count,
                                             pd, fdWriteOnly);
     int file = seL4_GetMR(1);
 
+    dprintf(0, "in sos_sys_read, count is %d, fd is %d \n", count, file);
     if(file > 0 && file <= MAX_FILES){
         fdnode *f_ptr = &fdtable[file];
         if(!f_ptr && !(f_ptr->permissions == fdReadOnly || f_ptr->permissions == fdReadWrite)) {
@@ -95,7 +96,7 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             get_shared_buffer(shared_region, count, buf);
             dev->read(dev->device, buf, count, reply_cap, shared_region);
         } else if(f_ptr->type == fdFile) {
-            fs_read((fhandle_t*)f_ptr->file, shared_region, reply_cap, count, f_ptr->offset);
+            fs_read(f_ptr, shared_region, reply_cap, count, f_ptr->offset);
         } else {
             free_shared_region_list(shared_region);
             return_reply(reply_cap, -1);

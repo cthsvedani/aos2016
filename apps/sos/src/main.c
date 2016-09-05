@@ -134,7 +134,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		}
 	case SOS_SYS_CLOSE:
 		{
-			int index = seL4_GetMR(0);
+			int index = seL4_GetMR(1);
 			sos_close(tty_test_process.fdtable, index);
 			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0,0);
