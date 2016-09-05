@@ -8,8 +8,9 @@
 #include "nfs/nfs.h"
 
 #define MAX_PROCESSES 10
-#define MAX_NFS_REQUESTS MAX_PROCESSES
+#define MAX_NFS_REQUESTS 20 
 #define NFS_TIME 100000
+#define MAX_REQUEST_SIZE 4096
 
 typedef struct request{
 	seL4_CPtr reply;
@@ -18,6 +19,8 @@ typedef struct request{
 	int fdIndex;
 	shared_region* s_region;
 	int data;
+    int count;
+    int read;
 }fs_request;
 
 typedef struct {
