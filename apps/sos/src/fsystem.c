@@ -233,10 +233,15 @@ void fs_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_
 	fs_request* req = fs_req[*i];
 	if(status == NFSERR_NOENT){
 		sattr_t attr;
-		attr.mode = 6;
+		attr.mode = (6 << 6) + 6;
 		attr.uid = 0;
 		attr.gid = 0;
 		attr.size = 0;
+		attr.atime.seconds = -1;
+		attr.atime.useconds = -1;
+		attr.mtime.seconds = -1;
+		attr.mtime.useconds = -1;
+	
 		nfs_create(&mnt_point, req->kbuff, &attr, fs_open_create, token);
 		return;
 	}
@@ -305,4 +310,47 @@ void fs_close(fdnode* fdtable, int index){
 	fdtable[index].file = 0;
 	fdtable[index].offset = 0;
 	fdtable[index].permissions = 0;
+}
+
+void fs_write(fdnode* f_ptr, char* buff, size_t count, seL4_CPtr reply, int offset){
+	uint32_t * i =	malloc(sizeof(uint32_t));
+	if(i == NULL){
+		free(buff);
+		reply_failed(reply);
+		return;	
+	}
+	
+	*i =  fs_next_index();
+	if(*i == -1){
+		free(i);
+		free(buff);
+		reply_failed(reply);
+		return;
+	}
+	fs_req[*i]->kbuff = buff;
+	fs_req[*i]->reply = reply;
+	fs_req[*i]->fdIndex = count;	
+	
+	if(nfs_write((fhandle_t*)f_ptr->file, offset, count, buff, fs_write_complete, (uintptr_t)i) != RPC_OK){
+		fs_free_index(*i);
+		free(i);
+		free(buff);
+		reply_failed(reply);
+	}	
+}
+
+void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int count){
+	uint32_t * i = (uint32_t*) token;
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);	
+	if(status == NFS_OK){
+		seL4_SetMR(0, fs_req[*i]->fdIndex);
+	}
+	else{
+		seL4_SetMR(0, -1);
+	}
+	seL4_Send(fs_req[*i]->reply, tag);
+	cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
+	free(fs_req[*i]->kbuff);
+	fs_free_index(*i);
+	free(i);
 }

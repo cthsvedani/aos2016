@@ -135,11 +135,20 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 			int file = seL4_GetMR(1);
 			if(file > 0 && file <= MAX_FILES){
 				fdDevice* dev = (fdDevice*)fdtable[file].file;
-		 	    if(fdtable[file].file != 0 && 
+				if(fdtable[file].file != 0 && 
 						(fdtable[file].permissions == fdWriteOnly || fdtable[file].permissions == fdReadWrite)){
-					ret = dev->write(dev->device, buf, count);
+					if(fdtable[file].type == fdDev){
+							ret = dev->write(dev->device, buf, count);
+					}
+					else{
+						fs_write(&fdtable[file], buf, count, reply_cap, fdtable[file].offset);
+						free_shared_region_list(shared_region);
+						return 1;
+					}
+					
 				} 
 			}
+			
 			else if(file == 0){
 				out(outDev, buf, count);
 			}
