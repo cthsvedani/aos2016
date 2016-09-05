@@ -90,9 +90,7 @@ int sos_getdirent(int pos, char *name, size_t nbyte){
 	seL4_SetMR(2, nbyte);
 	seL4_SetMR(3, pos);
 	seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
-    int temp = seL4_GetMR(0);
-    printf("sos_getdirent return %s \n", name);
-	return temp;
+	return seL4_GetMR(0);
 }
 
 int sos_stat(const char *path, sos_stat_t *buf){

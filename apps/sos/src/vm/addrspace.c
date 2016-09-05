@@ -187,16 +187,19 @@ void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n) {
         if(n >= (*s_region)->size) {
             memcpy((void *)((*s_region)->vbase), buf + buffer_index, (*s_region)->size);
             n -= (*s_region)->size;
+			buffer_index += (*s_region)->size;
             shared_region* tmp = (*s_region);
             *s_region = (*s_region)->next; 
             free(tmp);
-        } else { 
-            /*memcpy((void *)((*s_region)->vbase), buf + buffer_index, n);*/
+        }
+		 else {
+			dprintf(0, "Ending with n %d\n", n); 
+            memcpy((void *)((*s_region)->vbase), buf + buffer_index, n);
             (*s_region)->vbase += n;
+			(*s_region)->size -= n;	
             return;
         }
 
-        buffer_index += (*s_region)->size;
     }
     dprintf(0, "put_to_shared exiting \n");
 }

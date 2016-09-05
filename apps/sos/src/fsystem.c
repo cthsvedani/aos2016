@@ -1,7 +1,7 @@
 #include "fsystem.h"
 #include "nfs/nfs.h"
 
-#define verbose 5
+#define verbose 0 
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -64,6 +64,8 @@ void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t 
     fs_req[*token]->count = count;
     fs_req[*token]->read = 0;
 
+	count = (count < 4096 ) ? count : 4096;
+
     rpc_stat_t  ret = nfs_read((fhandle_t*)f_ptr->file, offset, count, fs_read_complete, (uintptr_t)token);
     if(ret != RPC_OK) {
 		dprintf(0, "Failed with code %d\n", ret);
@@ -75,26 +77,27 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 	dprintf(0, "In fs_read_complete, read %d bytes \n", count);
 	uint32_t* i = (uint32_t*)token;
     fs_request * req = fs_req[*i];
-	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
+	seL4_MessageInfo_t tag;
 	if(status == NFS_OK){
         req->fdtable->offset += count;
-        /*put_to_shared_region_n(&(req->s_region), (char*) data, count);*/
-        put_to_shared_region(req->s_region, (char*) data);
+        put_to_shared_region_n(&(req->s_region), (char*) data, count);
         req->count -= count;
         req->read += count;
-        if((req->count > 0) && (count == MAX_REQUEST_SIZE)) {
-            nfs_read((fhandle_t *)req->fdtable, req->fdtable->offset, (count > MAX_REQUEST_SIZE) ? MAX_REQUEST_SIZE : count, fs_read_complete, (uintptr_t)token);
+        if(count != 0 && req->count > 0 ) {
+            nfs_read((fhandle_t *)req->fdtable->file, req->fdtable->offset, (req->count > MAX_REQUEST_SIZE) ? MAX_REQUEST_SIZE : req->count, fs_read_complete, (uintptr_t)token);
             return;
         }
+		tag = seL4_MessageInfo_new(0,0,0,1);
 		seL4_SetMR(0, req->read);
 	} else {
 		dprintf(0, "Failed with code %d\n", status);
+		tag = seL4_MessageInfo_new(0,0,0,1);
 		seL4_SetMR(0, -1);
 	}
-    dprintf(0, "returning %d bytes read from read \n", seL4_GetMR(0));
 	seL4_Send(req->reply, tag);
 	cspace_delete_cap(cur_cspace, req->reply);
-    free_shared_region_list(req->s_region);
+    dprintf(0, "Read Done witd %d Bytes\n", req->read);
+	free_shared_region_list(req->s_region);
 	fs_free_index(*i);
 	free(i);
 }
