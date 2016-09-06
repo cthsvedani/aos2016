@@ -40,6 +40,7 @@
 #define FM_READ 4
 #define FM_WRITE 2
 #define FM_EXEC 1
+#define FM_READWRITE 2
 typedef int fmode_t;
 
 /* stat file types */
