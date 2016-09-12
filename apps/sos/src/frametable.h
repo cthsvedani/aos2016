@@ -2,9 +2,11 @@
 #define _FRAMETABLE_H_
 
 #include <cspace/cspace.h>
+#include "vm/addrspace.h"
 #define VMEM_START 0x20000000
 
 typedef struct frameNode{
+    pageTableEntry *pte;
     uint32_t index;
     seL4_Word p_addr;
     seL4_CPtr cptr;

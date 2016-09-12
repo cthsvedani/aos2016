@@ -20,7 +20,6 @@ typedef enum{
 	fdReadWrite,
 } fd_mode;
 
-
 typedef int (*read_t)(void* device, char* buffer, int len, seL4_CPtr reply, shared_region * shared_region);
 typedef int (*write_t)(void* device, char* buffer, int len);
 

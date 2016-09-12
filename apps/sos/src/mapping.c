@@ -165,7 +165,9 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 
 	if(err == seL4_NoError){
 		assert(pd->pTables[dindex] != NULL);
-		pd->pTables[dindex]->frameIndex[tindex] = frame;
+		pd->pTables[dindex]->frameIndex[tindex].index = frame;
+		pd->pTables[dindex]->frameIndex[tindex].swapped = 0;
+        ftable[frame].pte = &pd->pTables[dindex]->frameIndex[tindex];
 	}
 
     /* Map the user_phy_addr to sos */

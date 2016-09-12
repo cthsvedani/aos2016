@@ -9,13 +9,6 @@
 
 extern fhandle_t mnt_point;
 
-void reply_failed(seL4_CPtr reply){
-	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
-	seL4_SetMR(0,-1);
-	seL4_Send(reply, tag);
-	cspace_delete_cap(cur_cspace, reply);
-}
-
 void fsystemStart(){
 	assert(MAX_NFS_REQUESTS < 256); //We store some data in the higher bits of our nfs token.
 								 //Make sure it's seperate from our fs_request index!

@@ -48,6 +48,8 @@
 #include "vm/addrspace.h"
 #include <sos/rpc.h>
 #include <sos.h>
+#include "proc.h"
+#include "pagefile.h"
 
 
 /* This is the index where a clients syscall enpoint will
@@ -77,22 +79,9 @@ const seL4_BootInfo* _boot_info;
 
 struct serial* serial;
 
+struct proc sosh;
 
-struct {
-    seL4_Word tcb_addr;
-    seL4_TCB tcb_cap;
-
-	region * heap;
-
-	pageDirectory * pd;
-    seL4_CPtr ipc_buffer_cap;
-	uint32_t ipc_frame;
-	fdnode fdtable[MAX_FILES];
-	
-    cspace_t *croot;
-
-} tty_test_process;
-
+fdnode swapfile;
 
 seL4_CPtr _sos_ipc_ep_cap;
 seL4_CPtr _sos_interrupt_ep_cap;
@@ -119,23 +108,23 @@ void handle_syscall(seL4_Word badge, int num_args) {
     case SOS_SYS_READ:
         {
 			//For more complicated argument unpacking, we will use wrapper functions.
-			blocking =	handle_sos_read(reply_cap, tty_test_process.pd, tty_test_process.fdtable);
+			blocking =	handle_sos_read(reply_cap, sosh.pd, sosh.fdtable);
             break;
         }
 	case SOS_SYS_WRITE:
 		{
-			blocking = handle_sos_write(reply_cap, tty_test_process.pd, tty_test_process.fdtable);
+			blocking = handle_sos_write(reply_cap, sosh.pd, sosh.fdtable);
 			break;
 		}
 	case SOS_SYS_OPEN:
 		{
-			blocking = handle_sos_open(reply_cap,  tty_test_process.pd, tty_test_process.fdtable);
+			blocking = handle_sos_open(reply_cap,  sosh.pd, sosh.fdtable);
 			break;			
 		}
 	case SOS_SYS_CLOSE:
 		{
 			int index = seL4_GetMR(1);
-			sos_close(tty_test_process.fdtable, index);
+			sos_close(sosh.fdtable, index);
 			seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0,0);
 			seL4_Send(reply_cap,reply);
@@ -159,7 +148,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		break;
 	case SOS_SYS_BRK:
 	{
-		uint32_t brk = sos_brk(seL4_GetMR(1), tty_test_process.pd, tty_test_process.heap);
+		uint32_t brk = sos_brk(seL4_GetMR(1), sosh.pd, sosh.heap);
 		seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
 		seL4_SetMR(0, brk);
 		seL4_Send(reply_cap, reply);
@@ -167,12 +156,12 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		break;
 	case SOS_SYS_STAT:
 	{
-		blocking = handle_sos_stat(reply_cap, tty_test_process.pd);
+		blocking = handle_sos_stat(reply_cap, sosh.pd);
 		break;
 	}
     case SOS_SYS_GETDIRENT:
     {
-        blocking = handle_sos_getdirent(reply_cap, tty_test_process.pd);
+        blocking = handle_sos_getdirent(reply_cap, sosh.pd);
         break;
     }
     default:
@@ -209,7 +198,7 @@ void syscall_loop(seL4_CPtr ep) {
 				seL4_CPtr reply_cap;
 				reply_cap = cspace_save_reply_cap(cur_cspace);
 				assert(reply_cap != CSPACE_NULL);
-				if(vm_fault(tty_test_process.pd, seL4_GetMR(1))){
+				if(vm_fault(sosh.pd, seL4_GetMR(1))){
 					dprintf(0,"Tty performed an illegal Operation and needs to close!\n");
 				}
 				else{
@@ -304,20 +293,20 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     char* elf_base;
     unsigned long elf_size;
 
-	memset(tty_test_process.fdtable, 0, sizeof(fdnode)*MAX_FILES);
+	memset(sosh.fdtable, 0, sizeof(fdnode)*MAX_FILES);
     /* Create a VSpace */
-	tty_test_process.pd = pageTable_create();
+	sosh.pd = pageTable_create();
 
     /* Create a simple 1 level CSpace */
-    tty_test_process.croot = cspace_create(1);
-    assert(tty_test_process.croot != NULL);
+    sosh.croot = cspace_create(1);
+    assert(sosh.croot != NULL);
 
     /* Create an IPC buffer */
-	tty_test_process.ipc_frame = frame_alloc();
-    tty_test_process.ipc_buffer_cap = ftable[tty_test_process.ipc_frame].cptr;
+	sosh.ipc_frame = frame_alloc();
+    sosh.ipc_buffer_cap = ftable[sosh.ipc_frame].cptr;
 
     /* Copy the fault endpoint to the user app to enable IPC */
-    user_ep_cap = cspace_mint_cap(tty_test_process.croot,
+    user_ep_cap = cspace_mint_cap(sosh.croot,
                                   cur_cspace,
                                   fault_ep,
                                   seL4_AllRights, 
@@ -327,20 +316,20 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     assert(user_ep_cap == USER_EP_CAP);
 
     /* Create a new TCB object */
-    tty_test_process.tcb_addr = ut_alloc(seL4_TCBBits);
-    conditional_panic(!tty_test_process.tcb_addr, "No memory for new TCB");
-    err =  cspace_ut_retype_addr(tty_test_process.tcb_addr,
+    sosh.tcb_addr = ut_alloc(seL4_TCBBits);
+    conditional_panic(!sosh.tcb_addr, "No memory for new TCB");
+    err =  cspace_ut_retype_addr(sosh.tcb_addr,
                                  seL4_TCBObject,
                                  seL4_TCBBits,
                                  cur_cspace,
-                                 &tty_test_process.tcb_cap);
+                                 &sosh.tcb_cap);
     conditional_panic(err, "Failed to create TCB");
 
     /* Configure the TCB */
-    err = seL4_TCB_Configure(tty_test_process.tcb_cap, user_ep_cap, TTY_PRIORITY,
-                             tty_test_process.croot->root_cnode, seL4_NilData,
-                             tty_test_process.pd->PageD, seL4_NilData, PROCESS_IPC_BUFFER,
-                             tty_test_process.ipc_buffer_cap);
+    err = seL4_TCB_Configure(sosh.tcb_cap, user_ep_cap, TTY_PRIORITY,
+                             sosh.croot->root_cnode, seL4_NilData,
+                             sosh.pd->PageD, seL4_NilData, PROCESS_IPC_BUFFER,
+                             sosh.ipc_buffer_cap);
     conditional_panic(err, "Unable to configure new TCB");
 
 
@@ -352,24 +341,24 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
 	seL4_Word heap_start;
 
     /* load the elf image */
-    err = elf_load(tty_test_process.pd, elf_base, &heap_start);
+    err = elf_load(sosh.pd, elf_base, &heap_start);
     conditional_panic(err, "Failed to load elf image");
 	heap_start += HEAP_BUFFER;
-	tty_test_process.heap = new_region(tty_test_process.pd, heap_start, 0, VM_FAULT_READ | VM_FAULT_WRITE); 	
+	sosh.heap = new_region(sosh.pd, heap_start, 0, VM_FAULT_READ | VM_FAULT_WRITE); 	
 
     /* Create a stack frame */
     stack_frame = frame_alloc();
 	
-	new_region(tty_test_process.pd, PROCESS_STACK_TOP, PROCESS_STACK_TOP - STACK_BOTTOM,
+	new_region(sosh.pd, PROCESS_STACK_TOP, PROCESS_STACK_TOP - STACK_BOTTOM,
 			VM_FAULT_READ | VM_FAULT_WRITE | REGION_STACK);
-    err = sos_map_page(tty_test_process.pd, stack_frame,
+    err = sos_map_page(sosh.pd, stack_frame,
                    PROCESS_STACK_TOP - (1 << seL4_PageBits),
                    seL4_AllRights, seL4_ARM_Default_VMAttributes);
     conditional_panic(err, "Unable to map stack IPC buffer for user app");
 	
 
     /* Map in the IPC buffer for the thread */
-    err = sos_map_page(tty_test_process.pd, tty_test_process.ipc_frame,
+    err = sos_map_page(sosh.pd, sosh.ipc_frame,
                    PROCESS_IPC_BUFFER,
                    seL4_AllRights, seL4_ARM_Default_VMAttributes);
     conditional_panic(err, "Unable to map IPC buffer for user app");
@@ -378,7 +367,7 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     memset(&context, 0, sizeof(context));
     context.pc = elf_getEntryPoint(elf_base);
     context.sp = PROCESS_STACK_TOP;
-    seL4_TCB_WriteRegisters(tty_test_process.tcb_cap, 1, 0, 2, &context);
+    seL4_TCB_WriteRegisters(sosh.tcb_cap, 1, 0, 2, &context);
 }
 
 static void _sos_ipc_init(seL4_CPtr* ipc_ep, seL4_CPtr* async_ep){
@@ -466,8 +455,6 @@ uint32_t timerid[2];
  */
 
 int main(void) {
-
-
     _sos_init(&_sos_ipc_ep_cap, &_sos_interrupt_ep_cap);
 
     dprintf(0, "\nSOS Starting...\n");
@@ -487,15 +474,16 @@ int main(void) {
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));
     /* Start the user application */
 	
+    /* Initialise NFS */
 	fsystemStart();
+
+    /* Initialise swap space */
+    pf_init(&mnt_point, &swapfile);
     
 	start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");
-
-    /*ftest();*/
-    /*ftest_cap();*/
 
     syscall_loop(_sos_ipc_ep_cap);
 

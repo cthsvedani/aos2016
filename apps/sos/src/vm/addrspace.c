@@ -39,8 +39,11 @@ int vm_fault(pageDirectory * pd, seL4_Word addr) {
 	else{
 		int frame = frame_alloc();
 		if(!frame){
-			dprintf(0,"Memory Allocation Failed!\n");
-			return -2;			
+			dprintf(0,"Page fault\n");
+            int ret = page_fault(pd, addr); 
+            if(!ret) {
+                return -2;			
+            }
 		}
 		int err = sos_map_page(pd, frame, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
 		if(err){
@@ -50,6 +53,14 @@ int vm_fault(pageDirectory * pd, seL4_Word addr) {
 	}
 
     return 0;
+}
+
+int page_fault(pageDirectory * pd, seL4_Word addr) {
+    //chose entry in frametable to swap
+    pf_flush_entry();
+
+    //invalidate the page in PT
+    //initialize page_flush
 }
 
 region * new_region(pageDirectory * pd, seL4_Word start,
@@ -106,8 +117,8 @@ void PD_destroy(pageDirectory * pd){
 
 void PT_destroy(pageTable * pt){
 	for(int i = 0; i < VM_PTABLE_LENGTH; i++){
-		if(pt->frameIndex[i]){
-			 frame_free(pt->frameIndex[i]);
+		if(pt->frameIndex[i].index){
+			 frame_free(pt->frameIndex[i].index);
 		}
 	}
 }
@@ -269,10 +280,10 @@ seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
     uint32_t dindex = VADDR_TO_PDINDEX(user_vaddr);
     uint32_t tindex = VADDR_TO_PTINDEX(user_vaddr);
 	//Check if the page is actually resident, if it isn't, fault it in.
-	if(user_pd->pTables[dindex] == NULL || user_pd->pTables[dindex]->frameIndex[tindex] == 0){
+	if(user_pd->pTables[dindex] == NULL || user_pd->pTables[dindex]->frameIndex[tindex].index == 0){
 		vm_fault(user_pd, user_vaddr);
 	}
-    uint32_t index = user_pd->pTables[dindex]->frameIndex[tindex];
+    uint32_t index = user_pd->pTables[dindex]->frameIndex[tindex].index;
 	dprintf(0,"Translated 0x%x to 0x%x\n", user_vaddr, VMEM_START + (ftable[index].index << seL4_PageBits));
     return VMEM_START + (ftable[index].index << seL4_PageBits);
 }

@@ -34,4 +34,5 @@ int handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable);
 
 int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory* pd);
 int handle_sos_getdirent(seL4_CPtr reply_cap, pageDirectory* pd);
+void reply_failed(seL4_CPtr reply);
 #endif

@@ -37,8 +37,14 @@ typedef struct shared_region_t {
     struct shared_region_t *next;
 } shared_region;
 
+typedef struct sos_PageTableEntry{
+    uint32_t index;
+    unsigned int dirty : 1;
+    unsigned int swapped : 1;
+}pageTableEntry;
+
 typedef struct sos_PageTable{
-	uint32_t frameIndex[VM_PTABLE_LENGTH];
+	pageTableEntry frameIndex[VM_PTABLE_LENGTH];
 }pageTable;
 
 typedef struct sos_PageDirectory {
@@ -50,7 +56,6 @@ typedef struct sos_PageDirectory {
 	seL4_Word pTables_pAddr[VM_PDIR_LENGTH];			//seL4 Memory location
 	seL4_ARM_PageTable pTables_CPtr[VM_PDIR_LENGTH];	//seL4 Cap Pointer
 } pageDirectory;
-
 
 pageDirectory* pageTable_create(void);
 
@@ -67,6 +72,7 @@ void free_shared_region_list(shared_region * head);
 void free_buffer(char* buf, int count);
 
 int vm_fault(pageDirectory * pd,seL4_Word addr);
+int page_fault(pageDirectory * pd, seL4_Word addr);
 
 seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd);
 void get_shared_buffer(shared_region *shared_region, size_t count, char *buf);

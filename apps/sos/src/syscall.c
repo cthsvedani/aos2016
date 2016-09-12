@@ -15,6 +15,13 @@ static void return_reply(seL4_CPtr reply_cap, int ret) {
     seL4_Send(reply_cap, reply);
 }
 
+void reply_failed(seL4_CPtr reply){
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
+	seL4_SetMR(0,-1);
+	seL4_Send(reply, tag);
+	cspace_delete_cap(cur_cspace, reply);
+}
+
 int sos_sleep(int msec, seL4_CPtr reply_cap){
 	seL4_CPtr* data = malloc(sizeof(seL4_CPtr));
 	if(data == NULL){
