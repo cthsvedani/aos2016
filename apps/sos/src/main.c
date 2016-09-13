@@ -80,6 +80,7 @@ const seL4_BootInfo* _boot_info;
 struct serial* serial;
 
 struct proc sosh;
+void wait_for_pf(seL4_CPtr ep);
 
 fdnode swapfile;
 
@@ -477,11 +478,14 @@ int main(void) {
     /* Initialise NFS */
 	fsystemStart();
 
+    pf_init();
+	
+	wait_for_pf(_sos_ipc_ep_cap); 
+
 	start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
     /* Initialise swap space */
-    pf_init();
-    
+   
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");
 
@@ -489,5 +493,22 @@ int main(void) {
 
     /* Not reached */
     return 0;
+}
+
+void wait_for_pf(seL4_CPtr ep){
+    while (!__pf_init) {
+        seL4_Word badge;
+        seL4_Wait(ep, &badge);
+
+        if(badge & IRQ_EP_BADGE){
+            if (badge & IRQ_BADGE_NETWORK) {
+                network_irq();
+            }
+			if(badge & IRQ_BADGE_CLOCK) {
+                timer_interrupt();
+            }
+		}
+	}
+	dprintf(0,"Pagefile init complete\n");
 }
 

@@ -8,7 +8,8 @@
 
 int pf_flush_entry();
 int pf_init();
-int pf_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr);
+void pf_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr);
 void pf_open_create_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr);
 
+unsigned int __pf_init;
 #endif

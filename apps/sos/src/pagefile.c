@@ -9,11 +9,11 @@
 #include <sys/debug.h>
 #include <sys/panic.h>
 
-unsigned volatile int init = 0;
 extern fdnode  swapfile;
 extern fhandle_t mnt_point;
 
 int pf_init(){
+	__pf_init = 0;
     swapfile.file = 1;
     swapfile.type = fdFile;
     swapfile.permissions = fdReadWrite;
@@ -21,12 +21,10 @@ int pf_init(){
 	uint32_t* index = malloc(sizeof(uint32_t));
 	nfs_lookup(&mnt_point, "pagefile", pf_open_complete, (uintptr_t)index);
 
-    //TODO fix this, maybe call reply on an endpoint?
-    /*while(!init) {}*/
     return 1;
 }
 
-int pf_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr){
+void pf_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr){
 	if(status == NFSERR_NOENT){
 		sattr_t attr;
 		attr.mode = (6 << 6) + 6;
@@ -38,14 +36,18 @@ int pf_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t
 		attr.mtime.seconds = -1;
 		attr.mtime.useconds = -1;
 		nfs_create(&mnt_point, "pagefile", &attr, pf_open_create_complete, token);
+		return;
 	} else if(status == NFS_OK){
         swapfile.file = (seL4_Word)malloc(sizeof(fhandle_t));
+		if(!swapfile.file){
+			panic("Failed to Initialize Pagefile\n");
+		}
         memcpy((void*)swapfile.file, fh, sizeof(fhandle_t));
 	} else {
-		dprintf(0, "Something happened in open complete, status is %d\n", status);
+		panic("Failed to initialize pagefile\n");
 	}
 
-    init = 1;
+    __pf_init = 1;
 }
 
 void pf_open_create_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr){
@@ -54,10 +56,10 @@ void pf_open_create_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh,
 			fd->file = (seL4_Word)malloc(sizeof(fhandle_t));
 			memcpy((void*)fd->file, fh, sizeof(fhandle_t));
 	} else {
-		dprintf(0, "Something happened in open create complete\n");
+		panic("Pagefile failed to init\n");
 	}
 
-    init = 1;
+    __pf_init = 1;
 }
 
 int pf_flush_entry(){

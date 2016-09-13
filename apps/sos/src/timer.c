@@ -38,7 +38,7 @@ int timer_interrupt(void) {
     }
     if(timers[1].reg->REG_Status) {
         timestamp_overflows += 1;
-        handle_irq(timers[0]);
+        handle_irq(timers[1]);
     }
     return 0;
 }
