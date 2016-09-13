@@ -477,11 +477,11 @@ int main(void) {
     /* Initialise NFS */
 	fsystemStart();
 
-    /* Initialise swap space */
-    pf_init(&mnt_point, &swapfile);
-    
 	start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
+    /* Initialise swap space */
+    pf_init();
+    
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");
 
