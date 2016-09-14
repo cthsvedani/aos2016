@@ -18,7 +18,7 @@ int pf_init(){
     swapfile.type = fdFile;
     swapfile.permissions = fdReadWrite;
 
-	nfs_lookup(&mnt_point, "pagefile", pf_open_complete, NULL);
+	nfs_lookup(&mnt_point, "pagefile", pf_open_complete, 0);
 
     return 1;
 }

@@ -57,10 +57,10 @@ int vm_fault(pageDirectory * pd, seL4_Word addr) {
 
 int page_fault(pageDirectory * pd, seL4_Word addr) {
     //chose entry in frametable to swap
-    pf_flush_entry();
 
     //invalidate the page in PT
     //initialize page_flush
+return 0;
 }
 
 region * new_region(pageDirectory * pd, seL4_Word start,
