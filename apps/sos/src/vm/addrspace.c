@@ -6,7 +6,7 @@
 #include "vmem_layout.h"
 #include "fdtable.h"
 
-#define verbose 0
+#define verbose 0 
 #include "sys/debug.h"
 #include "sys/panic.h"
 

@@ -80,7 +80,6 @@ const seL4_BootInfo* _boot_info;
 struct serial* serial;
 
 struct proc sosh;
-void wait_for_pf(seL4_CPtr ep);
 
 fdnode swapfile;
 
@@ -90,8 +89,6 @@ seL4_CPtr _sos_interrupt_ep_cap;
 /**
  * NFS mount point
  */
-extern fhandle_t mnt_point;
-
 
 void handle_syscall(seL4_Word badge, int num_args) {
     seL4_Word syscall_number;
@@ -454,6 +451,29 @@ uint32_t timerid[2];
 /*
  * Main entry point - called by crt.
  */
+static inline void wait_for_pf(seL4_CPtr ep){
+	extern unsigned int __pf_init;  
+	while (!__pf_init) {
+		seL4_Word badge;
+		seL4_Word label;
+		seL4_MessageInfo_t message;
+
+		message = seL4_Wait(ep, &badge);
+		label = seL4_MessageInfo_get_label(message);
+
+		if(badge & IRQ_EP_BADGE){
+			if (badge & IRQ_BADGE_NETWORK) {
+               network_irq();
+			}
+			if(badge & IRQ_BADGE_CLOCK) {
+               timer_interrupt();
+			}
+		}
+		else{
+			panic("Then who was IPC!?\n");
+		}
+	}
+}
 
 int main(void) {
     _sos_init(&_sos_ipc_ep_cap, &_sos_interrupt_ep_cap);
@@ -479,12 +499,10 @@ int main(void) {
 	fsystemStart();
 
     pf_init();
-	
-//	wait_for_pf(_sos_ipc_ep_cap); 
 
 	start_first_process(TTY_NAME, _sos_ipc_ep_cap);
+	wait_for_pf(_sos_interrupt_ep_cap); 
 
-    /* Initialise swap space */
    
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");
@@ -495,20 +513,4 @@ int main(void) {
     return 0;
 }
 
-void wait_for_pf(seL4_CPtr ep){
-    while (!__pf_init) {
-        seL4_Word badge;
-        seL4_Wait(ep, &badge);
-
-        if(badge & IRQ_EP_BADGE){
-            if (badge & IRQ_BADGE_NETWORK) {
-                network_irq();
-            }
-			if(badge & IRQ_BADGE_CLOCK) {
-                timer_interrupt();
-            }
-		}
-	}
-	dprintf(0,"Pagefile init complete\n");
-}
 

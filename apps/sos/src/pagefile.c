@@ -11,15 +11,14 @@
 
 extern fdnode  swapfile;
 extern fhandle_t mnt_point;
+unsigned int __pf_init = 0;
 
 int pf_init(){
-	__pf_init = 0;
     swapfile.file = 1;
     swapfile.type = fdFile;
     swapfile.permissions = fdReadWrite;
 
-	uint32_t* index = malloc(sizeof(uint32_t));
-	nfs_lookup(&mnt_point, "pagefile", pf_open_complete, (uintptr_t)index);
+	nfs_lookup(&mnt_point, "pagefile", pf_open_complete, NULL);
 
     return 1;
 }
@@ -64,6 +63,15 @@ void pf_open_create_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh,
     __pf_init = 1;
 }
 
-int pf_flush_entry(){
+int pf_write_out(){
+	return 0;
+}
+
+void pf_fault_in(){
+
+}
+
+void clock(){
+
 }
 
