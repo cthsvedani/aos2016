@@ -37,7 +37,9 @@ void pf_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_
 		attr.mtime.useconds = -1;
 		nfs_create(&mnt_point, "pagefile", &attr, pf_open_create_complete, token);
 		return;
-	} else if(status == NFS_OK){
+	}
+
+	if(status == NFS_OK){
         swapfile.file = (seL4_Word)malloc(sizeof(fhandle_t));
 		if(!swapfile.file){
 			panic("Failed to Initialize Pagefile\n");

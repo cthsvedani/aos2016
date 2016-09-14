@@ -87,6 +87,7 @@ region * new_region(pageDirectory * pd, seL4_Word start,
 	region * head = pd->regions;
 	if(!head){
 		pd->regions = reg;
+		dprintf(0,"Region Head is 0x%x\n", reg);
 	}
 	else{
 		while(head->next){           

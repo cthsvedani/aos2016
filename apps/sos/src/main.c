@@ -480,7 +480,7 @@ int main(void) {
 
     pf_init();
 	
-	wait_for_pf(_sos_ipc_ep_cap); 
+//	wait_for_pf(_sos_ipc_ep_cap); 
 
 	start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
