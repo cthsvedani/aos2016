@@ -10,6 +10,7 @@
 #include <sys/panic.h>
 
 extern fhandle_t mnt_point;
+extern int jump;
 
 void fsystemStart(){
 	assert(MAX_NFS_REQUESTS < 256); //We store some data in the higher bits of our nfs token.
@@ -45,14 +46,14 @@ void fs_free_index(int i){
 }
 
 void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t count, int offset){
-    dprintf(0, "In fs_read, count is %d \n", count);
+    dprintf(1, "In fs_read, count is %d \n", count);
     uint32_t *token = malloc(sizeof(uint32_t));
     if(!token) {
-		reply_failed(reply);
+		if(reply != 0) reply_failed(reply);
     }
 	*token = fs_next_index();
 	if(*token < 0){
-		reply_failed(reply);
+		if(reply != 0) reply_failed(reply);
 		return;
 	}
 	fs_req[*token]->reply = reply;
@@ -67,11 +68,11 @@ void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t 
     if(ret != RPC_OK) {
 		dprintf(0, "Failed with code %d\n", ret);
     } 
-    dprintf(0, "fs_read returned with code %d\n", ret);
+    dprintf(1, "fs_read returned with code %d\n", ret);
 }
 
 void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int count, void *data){
-	dprintf(0, "In fs_read_complete, read %d bytes \n", count);
+	dprintf(1, "In fs_read_complete, read %d bytes \n", count);
 	uint32_t* i = (uint32_t*)token;
     fs_request * req = fs_req[*i];
 	seL4_MessageInfo_t tag;
@@ -84,16 +85,27 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
             nfs_read((fhandle_t *)req->fdtable->file, req->fdtable->offset, (req->count > MAX_REQUEST_SIZE) ? MAX_REQUEST_SIZE : req->count, fs_read_complete, (uintptr_t)token);
             return;
         }
-		tag = seL4_MessageInfo_new(0,0,0,1);
-		seL4_SetMR(0, req->read);
-	} else {
+		if(req->reply != 0){
+			tag = seL4_MessageInfo_new(0,0,0,1);
+			seL4_SetMR(0, req->read);
+		}
+		else{
+			free_shared_region_list(req->s_region);
+			fs_free_index(*i);
+			free(i);
+			jump = 1;
+			return;
+		}
+	} else if (req->reply != 0){
 		dprintf(0, "Failed with code %d\n", status);
 		tag = seL4_MessageInfo_new(0,0,0,1);
 		seL4_SetMR(0, -1);
 	}
-	seL4_Send(req->reply, tag);
-	cspace_delete_cap(cur_cspace, req->reply);
-    dprintf(0, "Read Done witd %d Bytes\n", req->read);
+	if(req->reply != 0){
+		seL4_Send(req->reply, tag);
+		cspace_delete_cap(cur_cspace, req->reply);
+	}	
+    dprintf(1, "Read Done witd %d Bytes\n", req->read);
 	free_shared_region_list(req->s_region);
 	fs_free_index(*i);
 	free(i);
@@ -329,7 +341,6 @@ void fs_close(fdnode* fdtable, int index){
 	fdtable[index].offset = 0;
 	fdtable[index].permissions = 0;
 }
-extern int jump;
 void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, int offset){
 	uint32_t * i =	malloc(sizeof(uint32_t));
 	if(i == NULL){
@@ -408,7 +419,6 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 			free_shared_region_list((shared_region*)fs_req[*i]->kbuff);
 			fs_free_index(*i);
 			free(i);
-			dprintf(0, "Wassup\n");
 			jump = 1;
 			return;
 		}

@@ -7,6 +7,9 @@
 #include "pagefile.h"
 #include "setjmp.h"
 #include "fsystem.h"
+#include "mapping.h"
+
+#include "sel4/types.h"
 
 #define verbose 5
 #include <sys/debug.h>
@@ -117,7 +120,12 @@ void pf_write_out(int pfIndex, frame* fr){
 	reg->vbase = VMEM_START + (offset << seL4_PageBits); 
 	reg->size = 4096;
 	reg->next = NULL;
-	if(fr->pte != NULL) fr->pte->index = (frameTop + pfIndex);
+	if(fr->pte != NULL){
+		 fr->pte->index = (frameTop + pfIndex);
+	}
+	else{
+		panic("fr->pte is NULL in pagefile.c");
+	}
 	swapfile->offset = (pfIndex << seL4_PageBits);
 	fs_write(swapfile, reg, 4096, 0, 0);
 	seL4_ARM_Page_Unmap(fr->cptr);
@@ -128,10 +136,23 @@ extern jmp_buf targ;
 
 void pf_return(){
 	longjmp(targ ,1);
-}
-void pf_fault_in(){
 
 }
+void pf_fault_in(uint32_t Index, uint32_t frame, pageDirectory * pd, seL4_Word vaddr){
+	uint32_t pfIndex = Index - frameTop;
+	assert(frame);
+	sos_map_page(pd, frame, vaddr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
+	shared_region * reg = malloc(sizeof(shared_region));
+	reg->user_addr = 0;
+	reg->vbase = VMEM_START + (frame << seL4_PageBits); 
+	reg->size = 4096;
+	reg->next = NULL;
+	swapfile->offset = (pfIndex << seL4_PageBits);
+	fs_read(swapfile, reg, 0, 4096, (pfIndex << seL4_PageBits));
+	syscall_loop(_sos_ipc_ep_cap);
+	panic("This should never happen... ");
+}
+
 frame* clock(int force){
 	if(force){
 		int i = hand++;
@@ -139,7 +160,7 @@ frame* clock(int force){
 			hand = frameBot;
 		}
 		while(ftable[i].pinned == 1){
-			dprintf(0, "i = %d\n", i);
+//			dprintf(0, "i = %d\n", i);
 			i = hand++;
 			if(hand == frameTop){
 				 hand = frameBot;

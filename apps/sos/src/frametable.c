@@ -59,7 +59,7 @@ void freeList_init(seL4_Word count){
 uint32_t frame_alloc(void) {
     frame* fNode = nextFreeFrame();
     if(!fNode){
-		dprintf(0,"Next Frame Not Found\n");
+//		dprintf(0,"Next Frame Not Found\n");
 		return 0;
 	}
 
@@ -122,8 +122,15 @@ int frame_free(uint32_t index) {
     return 0;
 }
 void pin_frame(uint32_t index){
+//	dprintf(0, "pinning Frame %d\n", index);
 	ftable[index].pinned = 1;
 }
+void unpin_frame_kvaddr(uint32_t kvaddr){
+	uint32_t index = ((kvaddr - VMEM_START) >> seL4_PageBits) - 1;
+//	dprintf(0, "Unpinning frame #%d\n", index);
+	ftable[index].pinned = 0;
+}
+
 frame * nextFreeFrame( void ){
     frame* fNode;
     if(freeList){       

@@ -197,7 +197,7 @@ void syscall_loop(seL4_CPtr ep) {
 				reply_cap = cspace_save_reply_cap(cur_cspace);
 				assert(reply_cap != CSPACE_NULL);
 				if(vm_fault(sosh.pd, seL4_GetMR(1))){
-					dprintf(0,"Tty performed an illegal Operation and needs to close!\n");
+					dprintf(0,"Tty performed illegal Operation and needs to close!\n");
 				}
 				else{
 					seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
