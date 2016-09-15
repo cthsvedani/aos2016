@@ -5,6 +5,9 @@
 #include "syscall.h"
 #include <nfs/nfs.h>
 #include "pagefile.h"
+#include "setjmp.h"
+#include "fsystem.h"
+
 #define verbose 5
 #include <sys/debug.h>
 #include <sys/panic.h>
@@ -13,6 +16,7 @@ extern fdnode  *swapfile;
 extern fhandle_t mnt_point;
 unsigned int __pf_init = 0;
 pf_region *pf_freelist;
+int hand;
 
 int pf_init(){
     swapfile = malloc(sizeof(fdnode));
@@ -26,7 +30,7 @@ int pf_init(){
     pf_freelist->next = NULL;
     pf_freelist->offset = 0;
     pf_freelist->size = PAGEFILE_PAGES;
-
+	hand = frameBot;
 	nfs_lookup(&mnt_point, "pagefile", pf_open_complete, 0);
 
     return 1;
@@ -103,15 +107,34 @@ void pf_open_create_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh,
     __pf_init = 1;
 }
 
-int pf_write_out(){
-	return 0;
-}
+extern seL4_CPtr _sos_ipc_ep_cap;
+extern void syscall_loop(seL4_CPtr ep);
 
+void pf_write_out(int pfIndex, frame* fr){
+	uint32_t offset = fr->index;
+	shared_region * reg = malloc(sizeof(shared_region));
+	reg->user_addr = 0;
+	reg->vbase = VMEM_START + (offset << seL4_PageBits); 
+	reg->size = 4096;
+	reg->next = NULL;
+	if(fr->pte != NULL) fr->pte->index = (frameTop + pfIndex);
+	fs_write(&swapfile, reg, 4096, 0, (pfIndex << seL4_PageBits));
+	syscall_loop(_sos_ipc_ep_cap);	
+	panic("Err..?");
+}
+extern jmp_buf targ;
+
+void pf_return(){
+	longjmp(targ ,1);
+}
 void pf_fault_in(){
 
 }
-
-void clock(){
-
+frame* clock(int force){
+	if(force){
+		int i = hand++;
+		if(hand > frameTop) hand = frameBot;
+		return &(ftable[i]);
+	}
 }
 

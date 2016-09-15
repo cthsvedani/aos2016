@@ -5,11 +5,15 @@
 #include "mapping.h"
 #include "vmem_layout.h"
 #include "fdtable.h"
+#include "setjmp.h"
+#include "timer.h"
+#include "pagefile.h"
 
-#define verbose 0 
+#define verbose 1 
 #include "sys/debug.h"
 #include "sys/panic.h"
 
+jmp_buf targ;
 
 pageDirectory* pageTable_create(void){
 	//Create a new Page Directory
@@ -55,12 +59,24 @@ int vm_fault(pageDirectory * pd, seL4_Word addr) {
     return 0;
 }
 
+void pf_callback(int id, void* data){
+	id = 0;
+	data = NULL;
+	
+	longjmp(targ, 1);
+}
+static int pagefileIndex;
 int page_fault(pageDirectory * pd, seL4_Word addr) {
-    //chose entry in frametable to swap
-
-    //invalidate the page in PT
-    //initialize page_flush
-return 0;
+	int i = pagefileIndex++;
+	frame* fr = clock(1);
+	int j = fr->index;
+	if(addr == 0){ //Frametable is full.
+		if(!setjmp(targ)){
+			pf_write_out(i, fr);
+		}	
+	}
+	dprintf(0, "Swapped out frame %d\n", j);
+	return j;
 }
 
 region * new_region(pageDirectory * pd, seL4_Word start,

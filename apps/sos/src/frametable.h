@@ -13,7 +13,8 @@ typedef struct frameNode{
     seL4_CPtr kern_cptr;
     struct frameNode * next;
 } frame;
-
+int frameTop;
+int frameBot;
 frame* ftable;
 
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace);

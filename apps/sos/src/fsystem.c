@@ -1,9 +1,11 @@
 #include "fsystem.h"
 #include "nfs/nfs.h"
+#include "pagefile.h"
+#include "syscall.h"
 
 #include <sys/stat.h>
 
-#define verbose 0
+#define verbose 1 
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -332,7 +334,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 	uint32_t * i =	malloc(sizeof(uint32_t));
 	if(i == NULL){
 		free_shared_region_list(reg);
-		reply_failed(reply);
+		if(reply != NULL) reply_failed(reply);
 		return;	
 	}
 	
@@ -340,7 +342,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 	if(*i == -1){
 		free(i);
 		free_shared_region_list(reg);
-		reply_failed(reply);
+		if(reply != NULL) reply_failed(reply);
 		return;
 	}
 	fs_req[*i]->reply = reply;
@@ -355,8 +357,9 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 		if(size > 1024){
 			size = 1024;
 		}
-		if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)reg->vbase,
+		if(nfs_write((fhandle_t*)f_ptr->file, 0, size, (void*)reg->vbase,
 						 fs_write_complete, (uintptr_t)i) == RPC_OK){
+			dprintf(0, "Magic\n");
 			reg->size -= size;
 			reg->vbase += size;
 			if(reg->size <= 0){	
@@ -366,9 +369,6 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 			fs_req[*i]->count++;
 			fs_req[*i]->s_region = reg;
 			if(!reg) break;
-		}
-		else{
-			assert(!"Oh No");
 		}
 	}
 }
@@ -401,15 +401,26 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 				return;
 			}
 		}
-		tag = seL4_MessageInfo_new(0,0,0,1);
-		seL4_SetMR(0, req->data);
+		if(req->reply != NULL){
+			tag = seL4_MessageInfo_new(0,0,0,1);
+			seL4_SetMR(0, req->data);
+		}
+		else{
+			free_shared_region_list((shared_region*)fs_req[*i]->kbuff);
+			fs_free_index(*i);
+			free(i);
+			dprintf(0, "Wassup\n");
+			pf_return();	
+		}
 	}
-	else{
+	else if(req->reply != NULL){
 		tag = seL4_MessageInfo_new(0,0,0,1);
 		seL4_SetMR(0, -1);
 	}
-	seL4_Send(fs_req[*i]->reply, tag);
-	cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
+	if(req->reply != NULL){
+		seL4_Send(fs_req[*i]->reply, tag);
+		cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
+	}
 	free_shared_region_list((shared_region*)fs_req[*i]->kbuff);
 	fs_free_index(*i);
 	free(i);
