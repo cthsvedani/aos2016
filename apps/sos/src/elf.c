@@ -105,7 +105,10 @@ static int load_segment_into_vspace(pageDirectory * dest_as,
 
         /* First we need to create a frame */
 		uint32_t frame = frame_alloc();
-
+		if(!frame){
+			frame = page_fault(dest_as, 0);
+		}
+		dprintf(0, "Using Frame #%d\n", frame);
         /* Copy the frame cap as we need to map it into 2 address spaces */
         sos_cap = cspace_copy_cap(cur_cspace, cur_cspace, ftable[frame].cptr, seL4_AllRights);
 	    conditional_panic(sos_cap == 0, "Failed to copy frame cap");

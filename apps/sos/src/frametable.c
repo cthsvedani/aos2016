@@ -44,6 +44,8 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
 
 
 void freeList_init(seL4_Word count){
+	frameTop = count - 1;
+	frameBot = bootstrapFrames + 1;
     for(int i = bootstrapFrames + 1; i < count-1; i++){
         ftable[i].index = i;
         ftable[i].next = &ftable[i + 1];
@@ -95,6 +97,10 @@ uint32_t frame_alloc(void) {
 		freeList_freeFrame(fNode);
 		return 0;
 	}
+
+    map_page(ftable[index].kern_cptr, seL4_CapInitThreadPD, 
+            VMEM_START + (index << seL4_PageBits), 
+            seL4_AllRights, seL4_ARM_Default_VMAttributes);
 
     return index;
 }

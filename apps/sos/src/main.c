@@ -499,9 +499,9 @@ int main(void) {
 	fsystemStart();
 
     pf_init();
+	wait_for_pf(_sos_interrupt_ep_cap); 
 
 	start_first_process(TTY_NAME, _sos_ipc_ep_cap);
-	wait_for_pf(_sos_interrupt_ep_cap); 
 
    
     /* Wait on synchronous endpoint for IPC */
