@@ -142,13 +142,14 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 	}
     err = seL4_ARM_Page_Map(ftable[frame].cptr, pd->PageD, vaddr, rights, attr);
 
-
 	if(err == seL4_NoError){
 		assert(pd->pTables[dindex] != NULL);
 		pd->pTables[dindex]->frameIndex[tindex].index = frame;
 		pd->pTables[dindex]->frameIndex[tindex].swapped = 0;
 		pd->pTables[dindex]->frameIndex[tindex].dirty = 0;
         ftable[frame].pte = &(pd->pTables[dindex]->frameIndex[tindex]);
+	} else {
+		dprintf(0, "Err code is %d\n", err);
 	}
 
     /* Map the user_phy_addr to sos */

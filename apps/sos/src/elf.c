@@ -20,7 +20,7 @@
 #include <ut_manager/ut.h>
 #include <mapping.h>
 
-#define verbose 0
+#define verbose 1
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -108,7 +108,7 @@ static int load_segment_into_vspace(pageDirectory * dest_as,
 		if(!frame){
 			frame = page_fault(dest_as, 0);
 		}
-		dprintf(0, "Using Frame #%d\n", frame);
+		printf("Using Frame #%d\n", frame);
         /* Copy the frame cap as we need to map it into 2 address spaces */
         sos_cap = cspace_copy_cap(cur_cspace, cur_cspace, ftable[frame].cptr, seL4_AllRights);
 	    conditional_panic(sos_cap == 0, "Failed to copy frame cap");

@@ -36,18 +36,18 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
    
     ftable = (frame*) VMEM_START;
 
-    freeList = &ftable[bootstrapFrames + 1];
-
     freeList_init(count);
+    freeList = &ftable[frameBot];
 
     _ftInit = 1;
 }
 
 void freeList_init(seL4_Word count){
 	frameTop = count - 1;
-	frameBot = bootstrapFrames + 1;
-    for(int i = bootstrapFrames + 1; i < count-1; i++){
+	frameBot = count - 11;
+    for(int i = count - 11; i < count-1; i++){
         ftable[i].index = i;
+		ftable[i].pinned = 0;
         ftable[i].next = &ftable[i + 1];
         ftable[i].swapping = 0;
         ftable[i].pinned = 0;
@@ -125,7 +125,9 @@ int frame_free(uint32_t index) {
 
     return 0;
 }
-
+void pin_frame(uint32_t index){
+	ftable[index].pinned = 1;
+}
 frame * nextFreeFrame( void ){
     frame* fNode;
     if(freeList){       
