@@ -27,4 +27,8 @@ void freeList_init(seL4_Word count);
 frame * nextFreeFrame(void);
 void freeList_freeFrame(frame * fNode); 
 
+//swapping 
+int flush_frame();
+int get_flush_candidate();
+
 #endif
