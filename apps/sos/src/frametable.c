@@ -42,7 +42,6 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
     _ftInit = 1;
 }
 
-
 void freeList_init(seL4_Word count){
     for(int i = bootstrapFrames + 1; i < count-1; i++){
         ftable[i].index = i;
@@ -132,36 +131,9 @@ void freeList_freeFrame(frame * fNode){
      freeList = fNode;
 }
 
-//vspace is represented by a PD object
-//PDs map page tables
-//PTs map pages
-//creating a PD (by retyping) creates the vspace
-//deleting the PD deletes the vspace
+/*int flush_frame() {*/
+/*}*/
 
-//Code example:
-//get untyped memory (a page size)
-//seL4_Word frame_addr = ut_alloc(seL4_PageBits);
-
-//retype memory to type seL4_ARM_Page
-//cspace_ut_retype_addr(frame_addr, seL4_ARM_Page, seL4_ARM_Default_VMAttributes);
-
-//insert mapping
-//map_page(frame_cap, pd_cap, 0xA00000000, seL4_AllRights, seL4_ARM_Default_VMAttributes);
-
-//zero the new memory
-//bzero((void *)0xA0000000, PAGESIZE);
-
-//each mapping requeires its own frame cap even for the same fram, and has:
-//virtual_address, phys_address, address_space and frame_cap
-//address_space struct identifies the level 1 page_directory cap
-//you need to keep track of (frame_cap, PD_cap, v_adr, p_adr)
-
-//
-//sizes of memory objects
-//
-//OBJECT        Size in bytes (and alignment)
-//Frame             2^12
-//PageD             2^14
-//PageT             2^10
-
+/*int get_flush_candidate(){*/
+/*}*/
 

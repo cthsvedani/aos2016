@@ -5,8 +5,21 @@
 #include <nfs/nfs.h>
 
 #define PAGEFILE_NAME "pagefile"
+#define PAGEFILE_PAGES 1000000
 
+typedef struct pf_free_region {
+    int offset;
+    uint32_t size;
+    struct pf_free_region *next;
+} pf_region;
+
+//pagefile bookkeeping
 int pf_init();
+int pf_free(int offset);
+int pf_get_next_offset();
+
+//pagefile operation
+
 void pf_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr);
 void pf_open_create_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr);
 

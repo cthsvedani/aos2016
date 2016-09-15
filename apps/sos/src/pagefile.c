@@ -9,18 +9,63 @@
 #include <sys/debug.h>
 #include <sys/panic.h>
 
-extern fdnode  swapfile;
+extern fdnode  *swapfile;
 extern fhandle_t mnt_point;
 unsigned int __pf_init = 0;
+pf_region *pf_freelist;
 
 int pf_init(){
-    swapfile.file = 1;
-    swapfile.type = fdFile;
-    swapfile.permissions = fdReadWrite;
+    swapfile = malloc(sizeof(fdnode));
+    swapfile->file = malloc(sizeof(fhandle_t));
+    swapfile->type = fdFile;
+    swapfile->permissions = fdReadWrite;
+    pf_freelist = malloc(sizeof(pf_region));
+    if(!pf_freelist) {
+        panic("Nomem: pf_init");
+    }
+    pf_freelist->next = NULL;
+    pf_freelist->offset = 0;
+    pf_freelist->size = PAGEFILE_PAGES;
 
 	nfs_lookup(&mnt_point, "pagefile", pf_open_complete, 0);
 
     return 1;
+}
+
+int pf_free(int offset){
+    pf_region *new_region = malloc(sizeof(pf_region));
+    if(!new_region) {
+        panic("Failed to create freelist node");
+    }
+    new_region->next = NULL;
+    new_region->offset = offset;
+    new_region->size = 1;
+
+    if(pf_freelist) {
+        pf_freelist->next = new_region;
+    } else {
+        pf_freelist = new_region;
+    }
+}
+
+int pf_get_next_offset(){
+    int ret;
+
+    if(!pf_freelist){
+        panic("Pagefile is full, we need to kill something!");
+        return -1;
+    }
+    
+    ret = pf_freelist->offset;
+    pf_freelist->offset += 1;
+    pf_freelist->size -= 1;
+    if(!pf_freelist->size){ 
+        pf_region *tmp = pf_freelist;
+        pf_freelist = pf_freelist->next;
+        free(tmp);
+    }
+
+    return ret;
 }
 
 void pf_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr){
@@ -39,11 +84,7 @@ void pf_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_
 	}
 
 	if(status == NFS_OK){
-        swapfile.file = (seL4_Word)malloc(sizeof(fhandle_t));
-		if(!swapfile.file){
-			panic("Failed to Initialize Pagefile\n");
-		}
-        memcpy((void*)swapfile.file, fh, sizeof(fhandle_t));
+        memcpy((void*)swapfile->file, fh, sizeof(fhandle_t));
 	} else {
 		panic("Failed to initialize pagefile\n");
 	}
@@ -52,9 +93,8 @@ void pf_open_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_
 }
 
 void pf_open_create_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh, fattr_t * fattr){
-	fdnode* fd = &swapfile;
+	fdnode* fd = swapfile;
 	if(status == NFS_OK){
-			fd->file = (seL4_Word)malloc(sizeof(fhandle_t));
 			memcpy((void*)fd->file, fh, sizeof(fhandle_t));
 	} else {
 		panic("Pagefile failed to init\n");
