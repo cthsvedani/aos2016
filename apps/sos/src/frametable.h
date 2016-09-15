@@ -12,6 +12,8 @@ typedef struct frameNode{
     seL4_CPtr cptr;
     seL4_CPtr kern_cptr;
     struct frameNode * next;
+    unsigned int pinned : 1;
+    unsigned int swapping : 1;
 } frame;
 int frameTop;
 int frameBot;
@@ -25,5 +27,9 @@ int frame_free(uint32_t index);
 void freeList_init(seL4_Word count);
 frame * nextFreeFrame(void);
 void freeList_freeFrame(frame * fNode); 
+
+//swapping 
+int flush_frame();
+int get_flush_candidate();
 
 #endif

@@ -39,8 +39,8 @@ typedef struct shared_region_t {
 
 typedef struct sos_PageTableEntry{
     uint32_t index;
-    unsigned int dirty : 1;
     unsigned int swapped : 1;
+    unsigned int dirty : 1;
 }pageTableEntry;
 
 typedef struct sos_PageTable{

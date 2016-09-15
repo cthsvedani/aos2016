@@ -14,6 +14,7 @@ static frame * freeList;
 static int _ftInit = 0;
 static seL4_CPtr pd;
 static int bootstrapFrames;
+static int clock_ptr = 0;
 
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) { 
     assert(!_ftInit);
@@ -48,10 +49,11 @@ void freeList_init(seL4_Word count){
     for(int i = bootstrapFrames + 1; i < count-1; i++){
         ftable[i].index = i;
         ftable[i].next = &ftable[i + 1];
+        ftable[i].swapping = 0;
+        ftable[i].pinned = 0;
     }
-
-    
 }
+
 /*
  * The physical memory is reserved via the ut_alloc, the memory is retyped into a frame, and the frame is mapped into the SOS
  * window at a fixed offset of the physical address.
@@ -66,6 +68,8 @@ uint32_t frame_alloc(void) {
     int index = fNode->index;
 
     ftable[index].next = NULL;
+    ftable[index].swapping = 0;
+    ftable[index].pinned = 0;
     ftable[index].p_addr = ut_alloc(seL4_PageBits);
     if(!ftable[index].p_addr){
 		dprintf(0,"Ut alloc failed\n");
@@ -137,9 +141,29 @@ void freeList_freeFrame(frame * fNode){
      freeList = fNode;
 }
 
-/*int flush_frame() {*/
-/*}*/
+int flush_frame() {
+    //get flush candidate
+    int index = get_flush_candidate();
+    //mark frame as swapping in progress
+    ftable[index].swapping = 1;
 
-/*int get_flush_candidate(){*/
-/*}*/
+    //call pagefile_flush
+    //TODO
+    
+    //unmap for user
+    seL4_ARM_Page_Unmap(ftable[index].cptr);
+
+    //delete user cap
+    cspace_delete_cap(cap_cspace, ftable[index].cptr);
+
+    //mark frame as free
+    freeList_freeFrame(&ftable[index]);
+}
+
+int get_flush_candidate(){
+    //step through clock and unmap
+    if(
+    //if already unmapped stop and return frame
+    //if I'm back to the start stop and return frame
+}
 
