@@ -93,6 +93,7 @@ region * new_region(pageDirectory * pd, seL4_Word start,
     }
 
 	region * reg = malloc(sizeof(region));
+	memset(reg, 0, sizeof(region));
 	if(!reg){
 		return NULL;
 	}

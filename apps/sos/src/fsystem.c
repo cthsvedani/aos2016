@@ -329,7 +329,7 @@ void fs_close(fdnode* fdtable, int index){
 	fdtable[index].offset = 0;
 	fdtable[index].permissions = 0;
 }
-
+extern int jump;
 void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, int offset){
 	uint32_t * i =	malloc(sizeof(uint32_t));
 	if(i == NULL){
@@ -357,9 +357,8 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 		if(size > 1024){
 			size = 1024;
 		}
-		if(nfs_write((fhandle_t*)f_ptr->file, 0, size, (void*)reg->vbase,
+		if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)reg->vbase,
 						 fs_write_complete, (uintptr_t)i) == RPC_OK){
-			dprintf(0, "Magic\n");
 			reg->size -= size;
 			reg->vbase += size;
 			if(reg->size <= 0){	
@@ -410,7 +409,8 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 			fs_free_index(*i);
 			free(i);
 			dprintf(0, "Wassup\n");
-			pf_return();	
+			jump = 1;
+			return;
 		}
 	}
 	else if(req->reply != NULL){

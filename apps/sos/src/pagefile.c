@@ -118,7 +118,9 @@ void pf_write_out(int pfIndex, frame* fr){
 	reg->size = 4096;
 	reg->next = NULL;
 	if(fr->pte != NULL) fr->pte->index = (frameTop + pfIndex);
-	fs_write(&swapfile, reg, 4096, 0, (pfIndex << seL4_PageBits));
+	swapfile->offset = (pfIndex << seL4_PageBits);
+	fs_write(swapfile, reg, 4096, 0, 0);
+	seL4_ARM_Page_Unmap(fr->cptr);
 	syscall_loop(_sos_ipc_ep_cap);	
 	panic("Err..?");
 }
@@ -133,7 +135,16 @@ void pf_fault_in(){
 frame* clock(int force){
 	if(force){
 		int i = hand++;
-		if(hand > frameTop) hand = frameBot;
+		if(hand == frameTop){
+			hand = frameBot;
+		}
+		while(ftable[i].pinned == 1){
+			dprintf(0, "i = %d\n", i);
+			i = hand++;
+			if(hand == frameTop){
+				 hand = frameBot;
+			}
+		}
 		return &(ftable[i]);
 	}
 }

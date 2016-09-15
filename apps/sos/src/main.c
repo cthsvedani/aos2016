@@ -173,7 +173,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
     	cspace_free_slot(cur_cspace, reply_cap);
 	}
 }
-
+int jump = 0;
 void syscall_loop(seL4_CPtr ep) {
 
     while (1) {
@@ -214,6 +214,10 @@ void syscall_loop(seL4_CPtr ep) {
         }else{
             printf("Rootserver got an unknown message\n");
         }
+		if(jump){
+			jump = 0;
+			pf_return();
+		}
     }
 }
 
@@ -301,6 +305,7 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
 
     /* Create an IPC buffer */
 	sosh.ipc_frame = frame_alloc();
+	pin_frame(sosh.ipc_frame);
     sosh.ipc_buffer_cap = ftable[sosh.ipc_frame].cptr;
 
     /* Copy the fault endpoint to the user app to enable IPC */
@@ -346,7 +351,9 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
 
     /* Create a stack frame */
     stack_frame = frame_alloc();
-	
+	if(!stack_frame){
+		stack_frame = page_fault(sosh.pd, 0);
+	}	
 	new_region(sosh.pd, PROCESS_STACK_TOP, PROCESS_STACK_TOP - STACK_BOTTOM,
 			VM_FAULT_READ | VM_FAULT_WRITE | REGION_STACK);
     err = sos_map_page(sosh.pd, stack_frame,
