@@ -5,7 +5,7 @@
 
 #include <sys/stat.h>
 
-#define verbose 1 
+#define verbose 2 
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -94,6 +94,7 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 			fs_free_index(*i);
 			free(i);
 			jump = 1;
+            dprintf(1, "in fs read complete, performing jump\n", count);
 			return;
 		}
 	} else if (req->reply != 0){
@@ -404,8 +405,7 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 			}
 			fd->offset += size;	
 			return;	
-		}
-		else{
+		} else {
 			req->count--;
 			if(req->count != 0){				
 				return;
@@ -414,20 +414,20 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 		if(req->reply != NULL){
 			tag = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0, req->data);
-		}
-		else{
+		} else{
+            dprintf(1, "In fs_write_complete  \n", count);
 			free_shared_region_list((shared_region*)fs_req[*i]->kbuff);
 			fs_free_index(*i);
 			free(i);
 			jump = 1;
 			return;
 		}
-	}
-	else if(req->reply != NULL){
+	} else if(req->reply != NULL){
 		tag = seL4_MessageInfo_new(0,0,0,1);
 		seL4_SetMR(0, -1);
 	}
 	if(req->reply != NULL){
+        panic("In fs_write_complete\n");
 		seL4_Send(fs_req[*i]->reply, tag);
 		cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
 	}

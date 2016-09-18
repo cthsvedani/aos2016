@@ -35,7 +35,7 @@
 
 #include <autoconf.h>
 
-#define verbose 1
+#define verbose 5
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -50,6 +50,7 @@
 #include <sos.h>
 #include "proc.h"
 #include "pagefile.h"
+#include "setjmp.h"
 
 
 /* This is the index where a clients syscall enpoint will
@@ -96,6 +97,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 	int blocking = 0;
 
     syscall_number = seL4_GetMR(0);
+    dprintf(0, "syscall number is %d\n", syscall_number);
 
     /* Save the caller */
     reply_cap = cspace_save_reply_cap(cur_cspace);
@@ -170,10 +172,11 @@ void handle_syscall(seL4_Word badge, int num_args) {
 
     /* Free the saved reply cap */
 	if(!blocking){
-    	cspace_free_slot(cur_cspace, reply_cap);
+        cspace_free_slot(cur_cspace, reply_cap);
 	}
 }
 int jump = 0;
+extern jmp_buf targ;
 void syscall_loop(seL4_CPtr ep) {
 
     while (1) {
@@ -183,6 +186,7 @@ void syscall_loop(seL4_CPtr ep) {
 
         message = seL4_Wait(ep, &badge);
         label = seL4_MessageInfo_get_label(message);
+        seL4_Word addr = seL4_GetMR(1);
         if(badge & IRQ_EP_BADGE){
             /* Interrupt */
             if (badge & IRQ_BADGE_NETWORK) {
@@ -196,10 +200,11 @@ void syscall_loop(seL4_CPtr ep) {
 				seL4_CPtr reply_cap;
 				reply_cap = cspace_save_reply_cap(cur_cspace);
 				assert(reply_cap != CSPACE_NULL);
-				if(vm_fault(sosh.pd, seL4_GetMR(1))){
+                dprintf(0, "Handling vmfault address 0x%x, reply cap 0x%x\n", addr, reply_cap);
+				if(vm_fault(sosh.pd, addr)){
 					dprintf(0,"Tty performed illegal Operation and needs to close!\n");
-				}
-				else{
+				} else {
+                    dprintf(0, "Done handing vmfault address 0x%x, reply cap 0x%x, jump is %d\n", seL4_GetMR(1), reply_cap, jump);
 					seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
 					seL4_SetMR(0,0);
 					seL4_Send(reply_cap,reply);
@@ -209,12 +214,14 @@ void syscall_loop(seL4_CPtr ep) {
 
         }else if(label == seL4_NoFault) {
             /* System call */
+            dprintf(0, "calling handle syscall \n");
             handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1);
 
         }else{
-            printf("Rootserver got an unknown message\n");
+            dprintf(0, "Rootserver got an unknown message\n");
         }
 		if(jump){
+            dprintf(0, "jumping\n");
 			jump = 0;
 			pf_return();
 		}
@@ -369,9 +376,11 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     conditional_panic(err, "Unable to map IPC buffer for user app");
 
     /* Start the new process */
+    dprintf(1, "Start the new process\n");
     memset(&context, 0, sizeof(context));
     context.pc = elf_getEntryPoint(elf_base);
     context.sp = PROCESS_STACK_TOP;
+    dprintf(1, "context.sp 0x%x, context.pc 0x%x\n", context.sp, context.pc);
     seL4_TCB_WriteRegisters(sosh.tcb_cap, 1, 0, 2, &context);
 }
 
@@ -510,7 +519,6 @@ int main(void) {
 
 	start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
-   
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");
 

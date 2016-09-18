@@ -147,6 +147,7 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 		pd->pTables[dindex]->frameIndex[tindex].index = frame;
 		pd->pTables[dindex]->frameIndex[tindex].swapped = 0;
 		pd->pTables[dindex]->frameIndex[tindex].dirty = 0;
+		pd->pTables[dindex]->frameIndex[tindex].user_vaddr = vaddr;
         ftable[frame].pte = &(pd->pTables[dindex]->frameIndex[tindex]);
 	} else {
 		dprintf(0, "Err code is %d\n", err);

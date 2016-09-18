@@ -19,7 +19,7 @@ extern fdnode  *swapfile;
 extern fhandle_t mnt_point;
 unsigned int __pf_init = 0;
 pf_region *pf_freelist;
-int hand;
+static int hand;
 
 int pf_init(){
     swapfile = malloc(sizeof(fdnode));
@@ -122,11 +122,11 @@ void pf_write_out(int pfIndex, frame* fr){
 	reg->next = NULL;
 	if(fr->pte != NULL){
 		 fr->pte->index = (frameTop + pfIndex);
-	}
-	else{
+	} else {
 		panic("fr->pte is NULL in pagefile.c");
 	}
 	swapfile->offset = (pfIndex << seL4_PageBits);
+    dprintf(0, "writing in pagefile at offset 0x%x \n", swapfile->offset);
 	fs_write(swapfile, reg, 4096, 0, 0);
 	seL4_ARM_Page_Unmap(fr->cptr);
 	syscall_loop(_sos_ipc_ep_cap);	
@@ -136,7 +136,6 @@ extern jmp_buf targ;
 
 void pf_return(){
 	longjmp(targ ,1);
-
 }
 void pf_fault_in(uint32_t Index, uint32_t frame, pageDirectory * pd, seL4_Word vaddr){
 	uint32_t pfIndex = Index - frameTop;
@@ -148,7 +147,11 @@ void pf_fault_in(uint32_t Index, uint32_t frame, pageDirectory * pd, seL4_Word v
 	reg->size = 4096;
 	reg->next = NULL;
 	swapfile->offset = (pfIndex << seL4_PageBits);
+    dprintf(0, "faulting in swapfile index %u to frame %d \n", pfIndex, frame);
+    dprintf(0, "reading in pagefile at offset 0x%x \n", swapfile->offset);
 	fs_read(swapfile, reg, 0, 4096, (pfIndex << seL4_PageBits));
+    seL4_SetMR(1, 0);
+    dprintf(0, "returning to syscall_loop \n");
 	syscall_loop(_sos_ipc_ep_cap);
 	panic("This should never happen... ");
 }

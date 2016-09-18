@@ -11,7 +11,7 @@
 
 #define PAGESIZE (1 << (seL4_PageBits))
 
-#define verbose 1 
+#define verbose 2 
 #include "sys/debug.h"
 #include "sys/panic.h"
 
@@ -41,16 +41,16 @@ int vm_fault(pageDirectory * pd, seL4_Word addr) {
 	dprintf(0, "vm_fault on 0x%x\n", addr);
     uint32_t dindex = VADDR_TO_PDINDEX(addr);
     uint32_t tindex = VADDR_TO_PTINDEX(addr);
-	if(pd->pTables[dindex] != 0 && pd->pTables[dindex]->frameIndex[tindex].index != 0){
+	if(pd->pTables[dindex] != 0 && pd->pTables[dindex]->frameIndex[tindex].index > frameTop){
 		page_fault(pd, addr);
+        dprintf(0, "Returned from page_fault on address 0x%x \n", addr);
 		return 0;
 	}	
 	region * reg = find_region(pd, addr); 
 	if(reg == NULL){
 		dprintf(0, "addr 0x%x is not a legal region!\n", addr);
 		return -1;
-	}	
-	else{
+	} else {
 		int frame = frame_alloc();
 		if(!frame){
 			dprintf(0,"Page fault\n");
@@ -72,27 +72,29 @@ void pf_callback(int id, void* data){
 	
 	longjmp(targ, 1);
 }
-static int pagefileIndex;
+static int pagefileIndex = 1;
 int page_fault(pageDirectory * pd, seL4_Word addr) {
 	if(addr == 0){ //Frametable is full.
 		int i = pagefileIndex++;
 		frame* fr = clock(1);
 		int j = fr->index;
+        dprintf(0, "Making space, flushing vaddr 0x0%x on frame 0x%d to swapfile index %d \n", fr->pte->user_vaddr, fr->index, i);
 		if(!setjmp(targ)){
 			pf_write_out(i, fr);
 		}
 		return j;	
-	}
-	else{//A swapped out page is needed
+	} else {//A swapped out page is needed
 	    uint32_t dindex = VADDR_TO_PDINDEX(addr);
 		uint32_t tindex = VADDR_TO_PTINDEX(addr);
 		uint32_t frame = frame_alloc();
+        dprintf(0, "swapped out page needed for user_vaddr 0x%x\n", addr);
 		uint32_t i = pd->pTables[dindex]->frameIndex[tindex].index;
 		if(!frame){
 			frame = page_fault(NULL, 0);
 		}
 		if(!setjmp(targ)){
 //			dprintf(0, "Frame = %d\n", frame);
+            dprintf(0, "swapped out page needed for user_vaddr 0x%x, got frame %d\n", addr, frame);
 			pf_fault_in(i, frame, pd,  addr);
 		}	
 		seL4_ARM_Page_Unify_Instruction(ftable[frame].kern_cptr, 0, PAGESIZE);
@@ -323,6 +325,7 @@ seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
 	//Check if the page is actually resident, if it isn't, fault it in.
 	if(user_pd->pTables[dindex] == NULL || user_pd->pTables[dindex]->frameIndex[tindex].index == 0 
 			|| user_pd->pTables[dindex]->frameIndex[tindex].index >= frameTop){
+        dprintf(0, "vm fault in get_user_translation on user_vaddr 0x%x", user_vaddr);
 		vm_fault(user_pd, user_vaddr);
 	}
     uint32_t index = user_pd->pTables[dindex]->frameIndex[tindex].index;
