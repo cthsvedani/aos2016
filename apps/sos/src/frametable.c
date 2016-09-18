@@ -45,11 +45,10 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
 void freeList_init(seL4_Word count){
 	frameTop = count - 1;
 	frameBot = count - 11;
-    for(int i = count - 11; i < count-1; i++){
+    for(int i = 0; i < count-1; i++){
         ftable[i].index = i;
 		ftable[i].pinned = 0;
         ftable[i].next = &ftable[i + 1];
-        ftable[i].pinned = 0;
     }
 }
 
@@ -165,11 +164,15 @@ int flush_frame() {
 
     //mark frame as free
     freeList_freeFrame(&ftable[index]);
+
+    return 1;
 }
 
 int get_flush_candidate(){
     //step through clock and unmap
+    /*if(){}*/
     //if already unmapped stop and return frame
     //if I'm back to the start stop and return frame
+    return 0;
 }
 
