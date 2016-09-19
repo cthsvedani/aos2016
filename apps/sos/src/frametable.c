@@ -167,11 +167,15 @@ int flush_frame() {
 
     //mark frame as free
     freeList_freeFrame(&ftable[index]);
+
+    return 1;
 }
 
 int get_flush_candidate(){
     //step through clock and unmap
+    /*if(){}*/
     //if already unmapped stop and return frame
     //if I'm back to the start stop and return frame
+    return 0;
 }
 
