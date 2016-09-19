@@ -1,6 +1,6 @@
 #include "cspace/cspace.h"
 
-#define verbose 0
+#define verbose 0 
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -10,7 +10,7 @@
 #include "fsystem.h"
 
 static void return_reply(seL4_CPtr reply_cap, int ret) {
-    seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
+    seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
     seL4_SetMR(0, ret);
     seL4_Send(reply_cap, reply);
 }
@@ -85,9 +85,9 @@ int sos_close(fdnode* fdtable, int index){
 int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
     seL4_Word user_addr = seL4_GetMR(2);
     size_t count = seL4_GetMR(3);
+    int file = seL4_GetMR(1);
     shared_region *shared_region = get_shared_region(user_addr, count,
                                             pd, fdWriteOnly);
-    int file = seL4_GetMR(1);
 
     dprintf(0, "in sos_sys_read, count is %d, fd is %d \n", count, file);
     if(file > 0 && file <= MAX_FILES){
@@ -119,22 +119,18 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 }
 
 int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
+			int file = seL4_GetMR(1);
             seL4_Word user_addr = seL4_GetMR(2);
             size_t count = seL4_GetMR(3);
-
             shared_region *shared_region = get_shared_region(user_addr, count, 
                                                     pd, fdReadOnly);
 			if(shared_region == NULL){
-				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
+				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
 				seL4_SetMR(0, 0);
 				seL4_Send(reply_cap, reply);
 			return 0;		
 	}
-            /*dprintf(0, "in syscall1: user v_addr is 0x%x size is %d\n",*/
-                   /*seL4_GetMR(1), count); */
-
 			int ret = -1;
-			int file = seL4_GetMR(1);
 			if(file > 0 && file <= MAX_FILES){
 				if(fdtable[file].file != 0 && 
 						(fdtable[file].permissions == fdWriteOnly || fdtable[file].permissions == fdReadWrite)){
@@ -160,15 +156,14 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 					dprintf(0,"Malloc failed in sys_write\n");
 				}
 				get_shared_buffer(shared_region, count, buf);
-				out(outDev, buf, count);
+				ret = out(outDev, buf, count);
 				free(buf);
 			}
 
-            /*dprintf(0, "ret is %d\n", ret);*/
-            seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 2);
+            seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
             seL4_SetMR(0, ret);
             seL4_Send(reply_cap, reply);
-			free_shared_region_list(shared_region);
+//			free_shared_region_list(shared_region);
 			return 0;
 }
 
@@ -176,15 +171,16 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 int handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 			seL4_Word user_addr = seL4_GetMR(1);
 			size_t count = seL4_GetMR(2);
+			fd_mode mode = seL4_GetMR(3);	
 			count++; //Pesky null terminator!
+			dprintf(0,"Attempting Open\n");
 			shared_region * shared_region = get_shared_region(user_addr, count, pd, fdReadOnly);
 			char *buf = malloc(count*sizeof(char));
 			if(buf == NULL){
 				dprintf(0,"Malloc failed in sys_open\n");
 			}
 			get_shared_buffer(shared_region, count, buf);
-			dprintf(0,"Attempting Open\n");
-			int ret = sos_open(buf, fdtable, seL4_GetMR(3), reply_cap);
+			int ret = sos_open(buf, fdtable, mode, reply_cap);
 			if(ret != -1){
 				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
 				seL4_SetMR(0, ret);

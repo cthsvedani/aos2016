@@ -43,14 +43,13 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
 }
 
 void freeList_init(seL4_Word count){
-	frameTop = count - 1;
-	frameBot = count - 11;
-    for(int i = count - 11; i < count-1; i++){
+	frameTop = count - 20;
+	frameBot = count - 130;
+    for(int i = frameBot; i < frameTop; i++){
         ftable[i].index = i;
 		ftable[i].pinned = 0;
+		ftable[i].backingIndex = 0;
         ftable[i].next = &ftable[i + 1];
-        ftable[i].swapping = 0;
-        ftable[i].pinned = 0;
     }
 }
 
@@ -68,7 +67,6 @@ uint32_t frame_alloc(void) {
     int index = fNode->index;
 
     ftable[index].next = NULL;
-    ftable[index].swapping = 0;
     ftable[index].pinned = 0;
     ftable[index].p_addr = ut_alloc(seL4_PageBits);
     if(!ftable[index].p_addr){
@@ -126,12 +124,15 @@ int frame_free(uint32_t index) {
     return 0;
 }
 void pin_frame(uint32_t index){
-//	dprintf(0, "pinning Frame %d\n", index);
 	ftable[index].pinned = 1;
 }
+
+void pin_frame_kvaddr(uint32_t kvaddr){
+	uint32_t index = ((kvaddr - VMEM_START) >> seL4_PageBits);
+	ftable[index].pinned = 0;
+}
 void unpin_frame_kvaddr(uint32_t kvaddr){
-	uint32_t index = ((kvaddr - VMEM_START) >> seL4_PageBits) - 1;
-//	dprintf(0, "Unpinning frame #%d\n", index);
+	uint32_t index = ((kvaddr - VMEM_START) >> seL4_PageBits);
 	ftable[index].pinned = 0;
 }
 
@@ -154,7 +155,6 @@ int flush_frame() {
     //get flush candidate
     int index = get_flush_candidate();
     //mark frame as swapping in progress
-    ftable[index].swapping = 1;
 
     //call pagefile_flush
     //TODO
@@ -163,7 +163,7 @@ int flush_frame() {
     seL4_ARM_Page_Unmap(ftable[index].cptr);
 
     //delete user cap
-    cspace_delete_cap(cap_cspace, ftable[index].cptr);
+    cspace_delete_cap(cur_cspace, ftable[index].cptr);
 
     //mark frame as free
     freeList_freeFrame(&ftable[index]);
@@ -171,7 +171,6 @@ int flush_frame() {
 
 int get_flush_candidate(){
     //step through clock and unmap
-    if(
     //if already unmapped stop and return frame
     //if I'm back to the start stop and return frame
 }

@@ -8,6 +8,7 @@
 typedef struct frameNode{
     pageTableEntry *pte;
     uint32_t index;
+	uint32_t backingIndex;
     seL4_Word p_addr;
     seL4_CPtr cptr;
     seL4_CPtr kern_cptr;
@@ -21,8 +22,11 @@ frame* ftable;
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace);
 uint32_t frame_alloc(void);
 int frame_free(uint32_t index);
+
 void pin_frame(uint32_t index); 
+void pin_frame_kvaddr(uint32_t kvaddr);
 void unpin_frame_kvaddr(uint32_t kvaddr);
+
 void freeList_init(seL4_Word count);
 frame * nextFreeFrame(void);
 void freeList_freeFrame(frame * fNode); 

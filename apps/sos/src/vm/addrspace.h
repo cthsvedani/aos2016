@@ -39,8 +39,8 @@ typedef struct shared_region_t {
 
 typedef struct sos_PageTableEntry{
     uint32_t index;
-    unsigned int swapped : 1;
-    unsigned int dirty : 1;
+    unsigned int referenced : 1;
+	unsigned int modified : 1;
 }pageTableEntry;
 
 typedef struct sos_PageTable{
@@ -71,7 +71,7 @@ void free_region_list(region* head);
 void free_shared_region_list(shared_region * head);
 void free_buffer(char* buf, int count);
 
-int vm_fault(pageDirectory * pd,seL4_Word addr);
+int vm_fault(pageDirectory * pd,seL4_Word addr, int write);
 int page_fault(pageDirectory * pd, seL4_Word addr);
 
 seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd);

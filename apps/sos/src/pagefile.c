@@ -11,7 +11,7 @@
 
 #include "sel4/types.h"
 
-#define verbose 5
+#define verbose 0
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -19,11 +19,11 @@ extern fdnode  *swapfile;
 extern fhandle_t mnt_point;
 unsigned int __pf_init = 0;
 pf_region *pf_freelist;
-int hand;
+static int hand;
 
 int pf_init(){
     swapfile = malloc(sizeof(fdnode));
-    swapfile->file = malloc(sizeof(fhandle_t));
+    swapfile->file = (seL4_Word)malloc(sizeof(fhandle_t));
     swapfile->type = fdFile;
     swapfile->permissions = fdReadWrite;
     pf_freelist = malloc(sizeof(pf_region));
@@ -53,6 +53,7 @@ int pf_free(int offset){
     } else {
         pf_freelist = new_region;
     }
+	return 0;
 }
 
 int pf_get_next_offset(){
@@ -113,24 +114,38 @@ void pf_open_create_complete(uintptr_t token, nfs_stat_t status, fhandle_t * fh,
 extern seL4_CPtr _sos_ipc_ep_cap;
 extern void syscall_loop(seL4_CPtr ep);
 
-void pf_write_out(int pfIndex, frame* fr){
-	uint32_t offset = fr->index;
-	shared_region * reg = malloc(sizeof(shared_region));
-	reg->user_addr = 0;
-	reg->vbase = VMEM_START + (offset << seL4_PageBits); 
-	reg->size = 4096;
-	reg->next = NULL;
-	if(fr->pte != NULL){
-		 fr->pte->index = (frameTop + pfIndex);
+static int pagefileIndex = 1;
+void pf_write_out(frame* fr){
+	if(fr->pte && fr->pte->modified){
+		uint32_t pfIndex;
+		if(fr->backingIndex){
+			pfIndex = fr->backingIndex - frameTop;
+		}
+		else pfIndex = pagefileIndex++;
+		uint32_t offset = fr->index;
+		shared_region * reg = malloc(sizeof(shared_region));
+		reg->user_addr = 0;
+		reg->vbase = VMEM_START + (offset << seL4_PageBits); 
+		reg->size = 4096;
+		reg->next = NULL;
+		fr->pte->index = (frameTop + pfIndex);
+		swapfile->offset = (pfIndex << seL4_PageBits);
+		int err = seL4_ARM_Page_Unmap(fr->cptr);
+		if(err) dprintf(0, "PF Write error is %d\n", err);
+		pin_frame(fr->index);
+		fs_write(swapfile, reg, 4096, 0, swapfile->offset);
+		syscall_loop(_sos_ipc_ep_cap);	
+		panic("Err..?");
+	}
+	else if(fr->pte){
+		fr->pte->index = fr->backingIndex;	
+		seL4_ARM_Page_Unmap(fr->cptr);
+		fr->pte = NULL;
+		return;
 	}
 	else{
-		panic("fr->pte is NULL in pagefile.c");
+		panic("Trying to swap out a frame without a pagetable reference?!");
 	}
-	swapfile->offset = (pfIndex << seL4_PageBits);
-	fs_write(swapfile, reg, 4096, 0, 0);
-	seL4_ARM_Page_Unmap(fr->cptr);
-	syscall_loop(_sos_ipc_ep_cap);	
-	panic("Err..?");
 }
 extern jmp_buf targ;
 
@@ -141,13 +156,14 @@ void pf_return(){
 void pf_fault_in(uint32_t Index, uint32_t frame, pageDirectory * pd, seL4_Word vaddr){
 	uint32_t pfIndex = Index - frameTop;
 	assert(frame);
-	sos_map_page(pd, frame, vaddr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
 	shared_region * reg = malloc(sizeof(shared_region));
 	reg->user_addr = 0;
 	reg->vbase = VMEM_START + (frame << seL4_PageBits); 
 	reg->size = 4096;
 	reg->next = NULL;
 	swapfile->offset = (pfIndex << seL4_PageBits);
+	pin_frame(frame);
+	ftable[frame].backingIndex = Index;
 	fs_read(swapfile, reg, 0, 4096, (pfIndex << seL4_PageBits));
 	syscall_loop(_sos_ipc_ep_cap);
 	panic("This should never happen... ");
@@ -159,8 +175,11 @@ frame* clock(int force){
 		if(hand == frameTop){
 			hand = frameBot;
 		}
-		while(ftable[i].pinned == 1){
-//			dprintf(0, "i = %d\n", i);
+		while(ftable[i].pinned == 1 || ftable[i].pte->referenced){
+			if(!ftable[i].pinned){
+				ftable[i].pte->referenced = 0;
+				seL4_ARM_Page_Unmap(ftable[i].cptr);
+			}
 			i = hand++;
 			if(hand == frameTop){
 				 hand = frameBot;
@@ -168,5 +187,6 @@ frame* clock(int force){
 		}
 		return &(ftable[i]);
 	}
+	return 0;
 }
 

@@ -79,7 +79,7 @@ void close_device(fdnode* fdtable, int index){
 		if(fd->permissions == fdReadOnly || fd->permissions == fdReadWrite) device->readers--;
 		if(fd->permissions == fdWriteOnly || fd->permissions == fdReadWrite) device->writers--;
 	
-		fd->file = NULL;
+		fd->file = 0;
 		fd->permissions = 0;
 		fd->type = 0; 
 }

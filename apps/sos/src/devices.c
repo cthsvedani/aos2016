@@ -22,8 +22,8 @@ int buffLen = 0;
 
 finish_read_t finish_func = NULL;
 char* finish_buff = NULL;
-int finish_len = NULL;
-seL4_CPtr finish_reply = NULL;
+int finish_len = 0;
+seL4_CPtr finish_reply = 0;
 shared_region* finish_region = NULL;
 
 void setup_finish(char* buff, int len, seL4_CPtr reply, shared_region* shared_region, finish_read_t read_finish){
@@ -37,7 +37,7 @@ void setup_finish(char* buff, int len, seL4_CPtr reply, shared_region* shared_re
 
 int serial_read(struct serial* serial, char* buff, int len, seL4_CPtr reply, shared_region* shared_region){
 	if(buffLen < len && newlineIndex == -1){
-		setup_finish(buff, len, reply, shared_region, (read_t)read_finish);
+		setup_finish(buff, len, reply, shared_region, (finish_read_t)read_finish);
 	} else {
         read_finish(buff, len, reply, shared_region);
     }

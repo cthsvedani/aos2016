@@ -112,8 +112,8 @@ sos_map_page_table(pageDirectory * pd, seL4_Word vaddr){
         if(!pd->pTables[index]){
             return seL4_NotEnoughMemory;
         }
+		memset(pd->pTables[index], 0, sizeof(pageTable));
 	}
-
 
     return err;
 }
@@ -145,9 +145,8 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 	if(err == seL4_NoError){
 		assert(pd->pTables[dindex] != NULL);
 		pd->pTables[dindex]->frameIndex[tindex].index = frame;
-		pd->pTables[dindex]->frameIndex[tindex].swapped = 0;
-		pd->pTables[dindex]->frameIndex[tindex].dirty = 0;
         ftable[frame].pte = &(pd->pTables[dindex]->frameIndex[tindex]);
+		pd->pTables[dindex]->frameIndex[tindex].referenced = 1;
 	} else {
 		dprintf(0, "Err code is %d\n", err);
 	}
