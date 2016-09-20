@@ -355,6 +355,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 		if(reply != 0) reply_failed(reply);
 		return;
 	}
+
 	fs_req[*i]->reply = reply;
 	fs_req[*i]->fdIndex = count;
 	fs_req[*i]->fdtable = f_ptr;	
@@ -403,8 +404,7 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 			}
 			fd->offset += size;	
 			return;	
-		}
-		else{
+		} else {
 			req->count--;
 			if(req->count != 0){				
 				return;
@@ -413,16 +413,14 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 		if(req->reply != 0){
 			tag = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0, req->data);
-		}
-		else{
+		} else {
 			free_shared_region_list((shared_region*)fs_req[*i]->kbuff);
 			fs_free_index(*i);
 			free(i);
 			jump = 1;
 			return;
 		}
-	}
-	else if(req->reply != 0){
+	} else if(req->reply != 0){
 		tag = seL4_MessageInfo_new(0,0,0,1);
 		seL4_SetMR(0, -1);
 	}

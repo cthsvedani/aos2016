@@ -131,7 +131,9 @@ void pf_write_out(frame* fr){
 		fr->pte->index = (frameTop + pfIndex);
 		swapfile->offset = (pfIndex << seL4_PageBits);
 		int err = seL4_ARM_Page_Unmap(fr->cptr);
-		if(err) dprintf(0, "PF Write error is %d\n", err);
+		if(err) {
+            dprintf(0, "PF Write error is %d\n", err);
+        }
 		pin_frame(fr->index);
 		fs_write(swapfile, reg, 4096, 0, swapfile->offset);
 		syscall_loop(_sos_ipc_ep_cap);	
@@ -184,7 +186,9 @@ frame* clock(int force){
 			if(hand == frameTop){
 				 hand = frameBot;
 			}
-		}
+            dprintf(0, "clock tick \n");
+    }
+        dprintf(0, "clock exit \n");
 		return &(ftable[i]);
 	}
 	return 0;

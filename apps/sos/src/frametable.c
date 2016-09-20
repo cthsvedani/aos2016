@@ -43,8 +43,8 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
 }
 
 void freeList_init(seL4_Word count){
-	frameTop = count - 20;
-	frameBot = count - 130;
+	frameTop = count - 1;
+	frameBot = count - 10;
     for(int i = frameBot; i < frameTop; i++){
         ftable[i].index = i;
 		ftable[i].pinned = 0;
@@ -129,7 +129,7 @@ void pin_frame(uint32_t index){
 
 void pin_frame_kvaddr(uint32_t kvaddr){
 	uint32_t index = ((kvaddr - VMEM_START) >> seL4_PageBits);
-	ftable[index].pinned = 0;
+	ftable[index].pinned = 1;
 }
 void unpin_frame_kvaddr(uint32_t kvaddr){
 	uint32_t index = ((kvaddr - VMEM_START) >> seL4_PageBits);

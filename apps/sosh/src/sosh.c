@@ -259,38 +259,14 @@ static int benchmark(int argc, char *argv[]) {
     return sos_benchmark();
 }
 
-static int test_read_onebyte(int argc, char **argv) {
-    int fd;
-    char buf[BUF_SIZ];
-    int num_read, stdout_fd, num_written = 0;
-
-
-    if (argc != 2) {
-        printf("Usage: cat filename\n");
-        return 1;
+static int buf_test(int argc, char *argv[]) {
+    char buf[4096 * 20];
+    int stdout_fd = open("console", O_WRONLY);
+    for(int i=0; i< (4096 * 20) ; i++) {
+        buf[i] = 'a';
     }
-
-    printf("<%s>\n", argv[1]);
-
-    fd = open(argv[1], O_RDONLY);
-    stdout_fd = open("console", O_WRONLY);
-
-    assert(fd >= 0);
-
-    while ((num_read = read(fd, buf, 1)) > 0) {
-        num_written = write(stdout_fd, buf, num_read);
-    }
-
-    close(stdout_fd);
-
-    if (num_read == -1 || num_written == -1) {
-        printf("error on write\n");
-        return 1;
-    }
-
-    close(fd);
-
-    return 0;
+    write(stdout_fd, buf, 4096 * 20);
+    return 1;
 }
 
 struct command {
@@ -301,7 +277,7 @@ struct command {
 struct command commands[] = { { "dir", dir }, { "ls", dir }, { "cat", cat }, {
         "cp", cp }, { "ps", ps }, { "exec", exec }, {"sleep",second_sleep}, {"msleep",milli_sleep},
         {"time", second_time}, {"mtime", micro_time}, {"kill", kill},
-        {"benchmark", benchmark},{"tro", test_read_onebyte}};
+        {"benchmark", benchmark},{"buf", buf_test}};
 
 int main(void) {
     char buf[BUF_SIZ];

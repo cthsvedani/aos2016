@@ -1,6 +1,6 @@
 #include "cspace/cspace.h"
 
-#define verbose 0 
+#define verbose 1 
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -122,6 +122,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 			int file = seL4_GetMR(1);
             seL4_Word user_addr = seL4_GetMR(2);
             size_t count = seL4_GetMR(3);
+            dprintf(0, "in sos_sys_write, count is %d, fd is %d \n", count, file);
             shared_region *shared_region = get_shared_region(user_addr, count, 
                                                     pd, fdReadOnly);
 			if(shared_region == NULL){
@@ -143,8 +144,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 							get_shared_buffer(shared_region, count, buf);
 							ret = dev->write(dev->device, buf, count);
 							free(buf);
-					}
-					else{
+					} else {
 						fs_write(&(fdtable[file]), shared_region, count, reply_cap, fdtable[file].offset);
 						return 1;
 					}

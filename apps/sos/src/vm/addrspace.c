@@ -12,7 +12,7 @@
 
 #define PAGESIZE (1 << (seL4_PageBits))
 
-#define verbose 0 
+#define verbose 1 
 #include "sys/debug.h"
 #include "sys/panic.h"
 
@@ -47,21 +47,18 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
 		dprintf(0, "Page Fault, PF Index of %u\n", pd->pTables[dindex]->frameIndex[tindex].index - frameTop);
 		page_fault(pd, addr);
 		return 0;
-	}
-	else if(pd->pTables[dindex] != 0 &&	pd->pTables[dindex]->frameIndex[tindex].index != 0){ 
+	} else if(pd->pTables[dindex] != 0 && pd->pTables[dindex]->frameIndex[tindex].index != 0) {
 		if(!pd->pTables[dindex]->frameIndex[tindex].referenced){
 			dprintf(0, "Page Referenced\n");
 			if(!write){
 				sos_map_page(pd, pd->pTables[dindex]->frameIndex[tindex].index,
 						 addr, seL4_CanRead, seL4_ARM_Default_VMAttributes);
-			}
-			else{
+			} else {
 				sos_map_page(pd, pd->pTables[dindex]->frameIndex[tindex].index,
 						 addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
 			}
 			return 0;
-		}
-		else{
+		} else {
 			dprintf(0, "Page Modified\n");
 			seL4_ARM_Page_Unmap(ftable[pd->pTables[dindex]->frameIndex[tindex].index].cptr);
 			sos_map_page(pd, pd->pTables[dindex]->frameIndex[tindex].index, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
@@ -75,8 +72,7 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
 		seL4_TCB_ReadRegisters(sosh.tcb_cap, 0, 0, 2, &bob);
 		dprintf(0, "pc is 0x%x, sp is 0x%x\n", bob.pc, bob.sp);	
 		return -1;
-	}	
-	else{
+	} else {
 		int frame = frame_alloc();
 		if(!frame){
 			dprintf(0,"No Mem, Getting new Frame\n");
@@ -103,8 +99,7 @@ int page_fault(pageDirectory * pd, seL4_Word addr) {
 			pf_write_out(fr);
 		}
 		return j;	
-	}
-	else{//A swapped out page is needed
+	} else {//A swapped out page is needed
 	    uint32_t dindex = VADDR_TO_PDINDEX(addr);
 		uint32_t tindex = VADDR_TO_PTINDEX(addr);
 		uint32_t frame = frame_alloc();
