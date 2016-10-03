@@ -66,6 +66,7 @@ region * new_region(pageDirectory * pd, seL4_Word start,
 		size_t len, seL4_Word flags);
 
 region * find_region(pageDirectory * pd, seL4_Word vAddr);
+void print_regions(pageDirectory *pd);
 
 void free_region_list(region* head);
 void free_shared_region_list(shared_region * head);

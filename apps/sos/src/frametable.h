@@ -35,4 +35,5 @@ void freeList_freeFrame(frame * fNode);
 int flush_frame();
 int get_flush_candidate();
 
+void  print_frametable_status();
 #endif

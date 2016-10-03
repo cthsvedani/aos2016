@@ -35,7 +35,7 @@
 
 #include <autoconf.h>
 
-#define verbose 1
+#define verbose 2
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -103,6 +103,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 
     /* Process system call */
     switch (syscall_number) {
+        dprintf(0, "in handle_syscall, number %d\n", syscall_number);
     case SOS_SYS_READ:
         {
 			//For more complicated argument unpacking, we will use wrapper functions.
@@ -132,9 +133,8 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		{
 			blocking = 1;
 			sos_sleep(seL4_GetMR(1), reply_cap);
-			
+            break;
 		}
-		break;
 	case SOS_SYS_TIMESTAMP:
 		{
 			uint64_t time = time_stamp();
@@ -142,26 +142,26 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			seL4_SetMR(0, (time >> 32));
 			seL4_SetMR(1, (time << 32) >> 32);
 			seL4_Send(reply_cap,reply);
+            break;
 		}
-		break;
 	case SOS_SYS_BRK:
-	{
-		uint32_t brk = sos_brk(seL4_GetMR(1), sosh.pd, sosh.heap);
-		seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
-		seL4_SetMR(0, brk);
-		seL4_Send(reply_cap, reply);
-	}
-		break;
+        {
+            uint32_t brk = sos_brk(seL4_GetMR(1), sosh.pd, sosh.heap);
+            seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+            seL4_SetMR(0, brk);
+            seL4_Send(reply_cap, reply);
+            break;
+        }
 	case SOS_SYS_STAT:
-	{
-		blocking = handle_sos_stat(reply_cap, sosh.pd);
-		break;
-	}
+        {
+            blocking = handle_sos_stat(reply_cap, sosh.pd);
+            break;
+        }
     case SOS_SYS_GETDIRENT:
-    {
-        blocking = handle_sos_getdirent(reply_cap, sosh.pd);
-        break;
-    }
+        {
+            blocking = handle_sos_getdirent(reply_cap, sosh.pd);
+            break;
+        }
     default:
         dprintf(0, "Unknown syscall %d\n", syscall_number);
         /* we don't want to reply to an unknown syscall */
@@ -197,6 +197,8 @@ void syscall_loop(seL4_CPtr ep) {
 				reply_cap = cspace_save_reply_cap(cur_cspace);
 				assert(reply_cap != CSPACE_NULL);
 				uint32_t fault = seL4_GetMR(3);
+                dprintf(0, "USER vmfault on addr 0x%x", seL4_GetMR(1));
+                print_frametable_status();
 				if(vm_fault(sosh.pd, seL4_GetMR(1), fault & (1 << 11))){
 					dprintf(0,"Tty performed illegal Operation and needs to close!\n");
 				}
@@ -348,6 +350,8 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
     conditional_panic(err, "Failed to load elf image");
 	heap_start += HEAP_BUFFER;
 	sosh.heap = new_region(sosh.pd, heap_start, 0, VM_FAULT_READ | VM_FAULT_WRITE); 	
+    
+    dprintf(0, "in start_first_process, creating new region for heap at 0x%x\n", heap_start);
 
     /* Create a stack frame */
     stack_frame = frame_alloc();

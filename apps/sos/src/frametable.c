@@ -16,6 +16,15 @@ static seL4_CPtr pd;
 static int bootstrapFrames;
 static int clock_ptr = 0;
 
+void  print_frametable_status(){ 
+    dprintf(0, "Frametable status, frameBot %d, frameTop %d\n", frameBot, frameTop);
+    dprintf(0, "-----------------\n");
+    for(int i = frameBot; i< frameTop; i++) {
+        dprintf(0, "Frame: %d, pinned %d, backingIndex: %d\n", ftable[i].index, ftable[i].pinned, ftable[i].backingIndex);
+    }
+}   
+
+
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) { 
     assert(!_ftInit);
 	pd = seL4_CapInitThreadPD;
@@ -52,6 +61,7 @@ void freeList_init(seL4_Word count){
         ftable[i].next = &ftable[i + 1];
     }
 }
+
 
 /*
  * The physical memory is reserved via the ut_alloc, the memory is retyped into a frame, and the frame is mapped into the SOS
@@ -133,6 +143,7 @@ void pin_frame_kvaddr(uint32_t kvaddr){
 }
 void unpin_frame_kvaddr(uint32_t kvaddr){
 	uint32_t index = ((kvaddr - VMEM_START) >> seL4_PageBits);
+    dprintf(0, "unpinning kvaddr 0x%x in which is frame %d\n",kvaddr, index);
 	ftable[index].pinned = 0;
 }
 

@@ -12,7 +12,7 @@
 
 #define PAGESIZE (1 << (seL4_PageBits))
 
-#define verbose 1 
+#define verbose 0 
 #include "sys/debug.h"
 #include "sys/panic.h"
 
@@ -43,10 +43,12 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
 	dprintf(0, "vm_fault at 0x%x : ", addr);
 	uint32_t dindex = VADDR_TO_PDINDEX(addr);
     uint32_t tindex = VADDR_TO_PTINDEX(addr);
+    //the page is in the pagefile
 	if(pd->pTables[dindex] != 0 && pd->pTables[dindex]->frameIndex[tindex].index > frameTop){
 		dprintf(0, "Page Fault, PF Index of %u\n", pd->pTables[dindex]->frameIndex[tindex].index - frameTop);
 		page_fault(pd, addr);
 		return 0;
+    //the page is already in physical memory
 	} else if(pd->pTables[dindex] != 0 && pd->pTables[dindex]->frameIndex[tindex].index != 0) {
 		if(!pd->pTables[dindex]->frameIndex[tindex].referenced){
 			dprintf(0, "Page Referenced\n");
@@ -67,6 +69,7 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
 		}
 	}
 	region * reg = find_region(pd, addr); 
+    print_regions(pd);
 	if(reg == NULL){
 		dprintf(0, "addr 0x%x is not a legal region!\n", addr);
 		seL4_TCB_ReadRegisters(sosh.tcb_cap, 0, 0, 2, &bob);
@@ -78,7 +81,6 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
 			dprintf(0,"No Mem, Getting new Frame\n");
             frame = page_fault(pd, 0); 
 		}
-		dprintf(0, "Blerg\n");
 		int err = sos_map_page(pd, frame, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
 		ftable[frame].pte->modified = 1;
 		ftable[frame].backingIndex = 0;
@@ -87,7 +89,6 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
 			return -3;
 		}
 	}
-
     return 0;
 }
 
@@ -95,6 +96,7 @@ int page_fault(pageDirectory * pd, seL4_Word addr) {
 	if(addr == 0){ //Frametable is full.
 		frame* fr = clock(1);
 		int j = fr->index;
+        dprintf(0,"decided to boot frame #%d\n", j);
 		if(!setjmp(targ)){
 			pf_write_out(fr);
 		}
@@ -141,11 +143,10 @@ region * new_region(pageDirectory * pd, seL4_Word start,
 	reg->size = len;
 	reg->flags = flags;
 	region * head = pd->regions;
-	if(!head){
+	if(!head) {
 		pd->regions = reg;
 		dprintf(0,"Region Head is 0x%x\n", reg);
-	}
-	else{
+	} else {
 		while(head->next){           
             if((reg->vbase < head->vbase) && ((reg->vbase + len) > (head->vbase + head->size))) {
                 return NULL;
@@ -176,6 +177,18 @@ void PT_destroy(pageTable * pt){
 	for(int i = 0; i < VM_PTABLE_LENGTH; i++){
 		if(pt->frameIndex[i].index){
 			 frame_free(pt->frameIndex[i].index);
+		}
+	}
+}
+
+void print_regions(pageDirectory *pd){
+	if(pd){
+		region * head = pd->regions;
+        dprintf(0, "Proc regions \n");
+        dprintf(0, "---------------------\n");
+		while(head){
+            dprintf(0, "vbase: 0x%x, size: %d, stack: %d \n", head->vbase, head->size, (head->flags & REGION_STACK));
+			head = head->next;
 		}
 	}
 }
@@ -211,7 +224,7 @@ void free_shared_region_list(shared_region * head){
 	while(head){
 		shared_region * tmp = head;
 		head = head->next;
-		unpin_frame_kvaddr(tmp->vbase - 1);
+        /*unpin_frame_kvaddr(tmp->vbase - 1);*/
 		free(tmp);
 	}
 } 
@@ -341,7 +354,8 @@ seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
 	//Check if the page is actually resident, if it isn't, fault it in.
 	if(user_pd->pTables[dindex] == NULL || user_pd->pTables[dindex]->frameIndex[tindex].index == 0 
 			|| user_pd->pTables[dindex]->frameIndex[tindex].index > frameTop){
-		vm_fault(user_pd, user_vaddr, 0);
+        /*print_regions(user_pd, user_vaddr);*/
+        vm_fault(user_pd, user_vaddr, 0);
 	}
     uint32_t index = user_pd->pTables[dindex]->frameIndex[tindex].index;
 	dprintf(0,"Translated 0x%x to 0x%x\n", user_vaddr, VMEM_START + (index << seL4_PageBits));
