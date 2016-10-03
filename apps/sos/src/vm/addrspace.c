@@ -223,7 +223,8 @@ void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
         dprintf(1, "shared_region%d addr 0x%x, size %d \n", i, shared_region->vbase, shared_region->size);
         dprintf(1, "shared_region%d uaddr 0x%x, size %d \n", i, shared_region->user_addr, shared_region->size);
 		dprintf(1, "kbuf = 0x%x\n", buf);
-        memcpy(buf + buffer_index, (void *)shared_region->vbase, shared_region->size);
+        seL4_Word sos_vaddr = get_user_translation(shared_region->user_vaddr, user_pd);
+        memcpy(buf + buffer_index, (void *)sos_vaddr, shared_region->size);
         buffer_index += shared_region->size;
         shared_region = shared_region->next; 
         i++;
@@ -247,25 +248,31 @@ void put_to_shared_region(shared_region *shared_region, char *buf) {
     dprintf(1, "put_to_shared exiting \n");
 }
 
-void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n) {
+void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n, int translate) {
     uint32_t buffer_index = 0;
     dprintf(1, "put_to_shared_n entered \n");
     while(*s_region && (n > 0)) {
-        dprintf(1, "region vbase is %x, with size %d\n", (*s_region)->vbase, (*s_region)->size);
+        seL4_Word sos_vaddr;
+        if(translate) {
+            sos_vaddr = get_user_translation((*s_region)->user_addr, (*s_region)->user_pd);
+        } else {
+            sos_vaddr = (*s_region)->user_addr;
+        }
+            
+        dprintf(1, "region vbase is %x, with size %d\n", sos_vaddr, (*s_region)->size);
         dprintf(1, "kernel buf is %x\n", buf);
         if(n >= (*s_region)->size) {
-            memcpy((void *)((*s_region)->vbase), buf + buffer_index, (*s_region)->size);
+            memcpy((void *)sos_vaddr, buf + buffer_index, (*s_region)->size);
             n -= (*s_region)->size;
 			buffer_index += (*s_region)->size;
             shared_region* tmp = (*s_region);
             *s_region = (*s_region)->next; 
 			unpin_frame_kvaddr(tmp->vbase);
             free(tmp);
-        }
-		 else {
+        } else {
 			dprintf(1, "Ending with n %d\n", n); 
-            memcpy((void *)((*s_region)->vbase), buf + buffer_index, n);
-            (*s_region)->vbase += n;
+            memcpy((void *)sos_vaddr, buf + buffer_index, n);
+            (*s_region)->user_addr += n;
 			(*s_region)->size -= n;	
             return;
         }
@@ -275,7 +282,6 @@ void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n) {
 }
 
 shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode) {
-    //Reuse region structs to define our regions of memory
     shared_region *head = malloc(sizeof(shared_region));
     dprintf(1, "in get_shared_region with len %d\n", len);
 	if(head == NULL){
@@ -284,6 +290,7 @@ shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirector
 	}
     shared_region *tail = head;
     head->user_addr = user_vaddr;
+    head->user_pd = user_pd;
 	if(len == 0){
 		free(head);
 		return NULL;
@@ -298,16 +305,17 @@ shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirector
         }   
 
         //get the sos_vaddr that corresponds to the user_vaddr
-        seL4_Word sos_vaddr = get_user_translation(user_vaddr, user_pd);
-        if(!sos_vaddr) {
-            dprintf(0, "Mapping does not exist.\n");
-            free_shared_region_list(head);
-            return NULL;
-        }
+        /*seL4_Word sos_vaddr = get_user_translation(user_vaddr, user_pd);*/
+        /*if(!sos_vaddr) {*/
+            /*dprintf(0, "Mapping does not exist.\n");*/
+            /*free_shared_region_list(head);*/
+            /*return NULL;*/
+        /*}*/
 
         //this is the start address  this page
-        tail->vbase = sos_vaddr + PAGE_OFFSET(user_vaddr);
+        /*tail->vbase = sos_vaddr + PAGE_OFFSET(user_vaddr);*/
 		tail->user_addr = user_vaddr;
+        head->user_pd = user_pd;
         //the length left on this page
         size_t page_len = PAGE_ALIGN(user_vaddr + (1 << seL4_PageBits)) - user_vaddr;
 

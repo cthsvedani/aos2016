@@ -122,6 +122,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 			int file = seL4_GetMR(1);
             seL4_Word user_addr = seL4_GetMR(2);
             size_t count = seL4_GetMR(3);
+
             dprintf(0, "in sos_sys_write, count is %d, fd is %d \n", count, file);
             shared_region *shared_region = get_shared_region(user_addr, count, 
                                                     pd, fdReadOnly);
@@ -129,12 +130,12 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
 				seL4_SetMR(0, 0);
 				seL4_Send(reply_cap, reply);
-			return 0;		
-	}
+                return 0;		
+            }
 			int ret = -1;
 			if(file > 0 && file <= MAX_FILES){
 				if(fdtable[file].file != 0 && 
-						(fdtable[file].permissions == fdWriteOnly || fdtable[file].permissions == fdReadWrite)){
+                  (fdtable[file].permissions == fdWriteOnly || fdtable[file].permissions == fdReadWrite)){
 						if(fdtable[file].type == fdDev){
 							fdDevice* dev = (fdDevice*)fdtable[file].file;
 							char *buf = malloc(sizeof(char) * count);
@@ -163,7 +164,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
             seL4_SetMR(0, ret);
             seL4_Send(reply_cap, reply);
-//			free_shared_region_list(shared_region);
+            free_shared_region_list(shared_region);
 			return 0;
 }
 

@@ -32,6 +32,40 @@
 static int in;
 static sos_stat_t sbuf;
 
+#define BUF_SIZ2    204800
+static int rw_w_big_buffer(int argc, char **argv) {
+    int fd;
+    char buf[BUF_SIZ2];
+    int num_read, stdout_fd, num_written = 0;
+
+    if (argc != 2) {
+        printf("Usage: cat filename\n");
+        return 1;
+    }
+
+    printf("<%s>\n", argv[1]);
+
+    fd = open(argv[1], O_RDONLY);
+    stdout_fd = open("console", O_WRONLY);
+
+    assert(fd >= 0);
+
+    while ((num_read = read(fd, buf, BUF_SIZ2)) > 0) {
+        num_written = write(stdout_fd, buf, num_read);
+    }
+
+    close(stdout_fd);
+
+    if (num_read == -1 || num_written == -1) {
+        printf("error on write\n");
+        return 1;
+    }
+
+    close(fd);
+
+    return 0;
+}
+
 static void prstat(const char *name) {
     /* print out stat buf */
     printf("%c%c%c%c 0x%06x 0x%lx 0x%06lx %s\n",
@@ -277,7 +311,7 @@ struct command {
 struct command commands[] = { { "dir", dir }, { "ls", dir }, { "cat", cat }, {
         "cp", cp }, { "ps", ps }, { "exec", exec }, {"sleep",second_sleep}, {"msleep",milli_sleep},
         {"time", second_time}, {"mtime", micro_time}, {"kill", kill},
-        {"benchmark", benchmark},{"buf", buf_test}};
+        {"benchmark", benchmark},{"bb", rw_w_big_buffer},{"buf", buf_test}};
 
 int main(void) {
     char buf[BUF_SIZ];

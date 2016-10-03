@@ -45,7 +45,7 @@ void fs_free_index(int i){
 	}
 }
 
-void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t count, int offset){
+void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t count, int offset, int swapping){
     dprintf(1, "In fs_read, count is %d \n", count);
     uint32_t *token = malloc(sizeof(uint32_t));
     if(!token) {
@@ -87,8 +87,7 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 		if(req->reply != 0){
 			tag = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0, req->read);
-		}
-		else{
+		} else {
 			free_shared_region_list(req->s_region);
 			fs_free_index(*i);
 			free(i);
@@ -340,7 +339,7 @@ void fs_close(fdnode* fdtable, int index){
 	fdtable[index].offset = 0;
 	fdtable[index].permissions = 0;
 }
-void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, int offset){
+void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, int offset, int swapping){
 	uint32_t * i =	malloc(sizeof(uint32_t));
 	if(i == NULL){
 		free_shared_region_list(reg);
@@ -368,10 +367,16 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 		if(size > 1024){
 			size = 1024;
 		}
-		if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)reg->vbase,
+        //not swapping
+        if(!swapping) {
+            seL4_Word sos_vaddr = get_user_translation(reg->user_addr, reg->user_pd);
+        } else {
+            sos_vaddr = reg->user_addr;
+        }
+		if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)sos_vaddr,
 						 fs_write_complete, (uintptr_t)i) == RPC_OK){
 			reg->size -= size;
-			reg->vbase += size;
+			reg->user_addr += size;
 			if(reg->size <= 0){	
 				reg = reg->next;
 			}
@@ -395,10 +400,11 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 			if(size > 1024){
 				size = 1024;
 			}
+            seL4_Word sos_vaddr = get_user_translation(req->s_region->user_addr, req->s_region->user_pd);
 			nfs_write((fhandle_t*)(fd->file), fd->offset, size,
-					(void*)req->s_region->vbase, fs_write_complete, (uintptr_t)i);
+					(void*)sos_vaddr, fs_write_complete, (uintptr_t)i);
 			req->s_region->size -= size;
-			req->s_region->vbase += size;
+			req->s_region->user_addr += size;
 			if(req->s_region->size <= 0){
 				req->s_region = req->s_region->next;
 			}

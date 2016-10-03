@@ -124,8 +124,7 @@ void pf_write_out(frame* fr){
 		else pfIndex = pagefileIndex++;
 		uint32_t offset = fr->index;
 		shared_region * reg = malloc(sizeof(shared_region));
-		reg->user_addr = 0;
-		reg->vbase = VMEM_START + (offset << seL4_PageBits); 
+		reg->user_addr = VMEM_START + (offset << seL4_PageBits); 
 		reg->size = 4096;
 		reg->next = NULL;
 		fr->pte->index = (frameTop + pfIndex);
@@ -138,14 +137,12 @@ void pf_write_out(frame* fr){
 		fs_write(swapfile, reg, 4096, 0, swapfile->offset);
 		syscall_loop(_sos_ipc_ep_cap);	
 		panic("Err..?");
-	}
-	else if(fr->pte){
+	} else if(fr->pte) {
 		fr->pte->index = fr->backingIndex;	
 		seL4_ARM_Page_Unmap(fr->cptr);
 		fr->pte = NULL;
 		return;
-	}
-	else{
+	} else {
 		panic("Trying to swap out a frame without a pagetable reference?!");
 	}
 }
@@ -159,8 +156,7 @@ void pf_fault_in(uint32_t Index, uint32_t frame, pageDirectory * pd, seL4_Word v
 	uint32_t pfIndex = Index - frameTop;
 	assert(frame);
 	shared_region * reg = malloc(sizeof(shared_region));
-	reg->user_addr = 0;
-	reg->vbase = VMEM_START + (frame << seL4_PageBits); 
+	reg->user_vaddr = VMEM_START + (frame << seL4_PageBits); 
 	reg->size = 4096;
 	reg->next = NULL;
 	swapfile->offset = (pfIndex << seL4_PageBits);

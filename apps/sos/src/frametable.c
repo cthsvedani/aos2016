@@ -44,7 +44,7 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
 
 void freeList_init(seL4_Word count){
 	frameTop = count - 1;
-	frameBot = count - 10;
+	frameBot = count - 100;
     for(int i = frameBot; i < frameTop; i++){
         ftable[i].index = i;
 		ftable[i].pinned = 0;

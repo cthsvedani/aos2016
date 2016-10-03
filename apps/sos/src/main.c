@@ -206,11 +206,9 @@ void syscall_loop(seL4_CPtr ep) {
                     cspace_free_slot(cur_cspace, reply_cap);
 				}
 			}
-
-        }else if(label == seL4_NoFault) {
+        } else if(label == seL4_NoFault) {
             /* System call */
             handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1);
-
         }else{
             printf("Rootserver got an unknown message\n");
         }
