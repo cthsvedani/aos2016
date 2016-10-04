@@ -89,7 +89,7 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
     shared_region *shared_region = get_shared_region(user_addr, count,
                                             pd, fdWriteOnly);
 
-    dprintf(0, "in sos_sys_read, count is %d, fd is %d \n", count, file);
+    dprintf(1, "in sos_sys_read, count is %d, fd is %d \n", count, file);
     if(file > 0 && file <= MAX_FILES){
         fdnode *f_ptr = &fdtable[file];
         if(!f_ptr && !(f_ptr->permissions == fdReadOnly || f_ptr->permissions == fdReadWrite)) {
@@ -181,6 +181,7 @@ int handle_sos_open(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 				dprintf(0,"Malloc failed in sys_open\n");
 			}
 			get_shared_buffer(shared_region, count, buf);
+			dprintf(0, "Attempting to open %s\n", buf);
 			int ret = sos_open(buf, fdtable, mode, reply_cap);
 			if(ret != -1){
 				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);

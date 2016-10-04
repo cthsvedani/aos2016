@@ -150,6 +150,7 @@ void pf_write_out(frame* fr){
 extern jmp_buf targ;
 
 void pf_return(){
+	dprintf(0, "Pop!\n");
 	longjmp(targ ,1);
 
 }
@@ -183,7 +184,7 @@ frame* clock(int force){
 			if(hand == frameTop){
 				 hand = frameBot;
 			}
-            /*dprintf(0, "clock tick \n");*/
+            //dprintf(0, "clock tick \n");
     }
         /*dprintf(0, "clock exit \n");*/
 		return &(ftable[i]);

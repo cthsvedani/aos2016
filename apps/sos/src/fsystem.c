@@ -89,7 +89,7 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 			tag = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0, req->read);
 		} else {
-			free_shared_region_list(req->s_region, req->swapping);
+			free_shared_region_list(req->s_region, 1);
 			fs_free_index(*i);
 			free(i);
 			jump = 1;
@@ -105,7 +105,7 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 		cspace_delete_cap(cur_cspace, req->reply);
 	}	
     dprintf(1, "Read Done with %d Bytes\n", req->read);
-	free_shared_region_list(req->s_region, req->swapping);
+	free_shared_region_list(req->s_region, 0);
 	fs_free_index(*i);
 	free(i);
 }

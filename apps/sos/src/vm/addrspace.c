@@ -213,11 +213,11 @@ void free_shared_region_list(shared_region * head, int swapping){
 		head = head->next;
         seL4_Word sos_vaddr;
         if(!swapping) {
-            sos_vaddr = get_user_translation(tmp->user_addr, tmp->user_pd);
+            //sos_vaddr = get_user_translation((tmp->user_addr), tmp->user_pd);
         } else { 
-            sos_vaddr = tmp->user_addr;
+            sos_vaddr = tmp->user_addr - 1;
+			unpin_frame_kvaddr(sos_vaddr);
         }
-		unpin_frame_kvaddr(sos_vaddr - 1);
 		free(tmp);
 	}
 } 
@@ -274,7 +274,7 @@ void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n, int s
 			buffer_index += (*s_region)->size;
             shared_region* tmp = (*s_region);
             *s_region = (*s_region)->next; 
-			unpin_frame_kvaddr(sos_vaddr - 1);
+			unpin_frame_kvaddr(sos_vaddr);
             free(tmp);
         } else {
 			dprintf(1, "Ending with n %d\n", n); 
@@ -358,7 +358,7 @@ seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd) {
 	}
     uint32_t index = user_pd->pTables[dindex]->frameIndex[tindex].index;
 	dprintf(0,"Translated 0x%x to 0x%x\n", user_vaddr, VMEM_START + (index << seL4_PageBits));
-    return VMEM_START + (index << seL4_PageBits);
+    return VMEM_START + (index << seL4_PageBits) + (0x00000FFF & user_vaddr);
 }
 
 int pt_ckptr(seL4_Word user_vaddr, size_t len, pageDirectory * user_pd, fd_mode mode) {
