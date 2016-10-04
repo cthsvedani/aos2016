@@ -94,7 +94,7 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
         fdnode *f_ptr = &fdtable[file];
         if(!f_ptr && !(f_ptr->permissions == fdReadOnly || f_ptr->permissions == fdReadWrite)) {
             dprintf(0, "file not found or wrong permissions \n");
-            free_shared_region_list(shared_region);
+            free_shared_region_list(shared_region, 0);
             return_reply(reply_cap, -1);
             return 0;
         }
@@ -107,9 +107,9 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             get_shared_buffer(shared_region, count, buf);
             dev->read(dev->device, buf, count, reply_cap, shared_region);
         } else if(f_ptr->type == fdFile) {
-            fs_read(f_ptr, shared_region, reply_cap, count, f_ptr->offset);
+            fs_read(f_ptr, shared_region, reply_cap, count, f_ptr->offset, 0);
         } else {
-            free_shared_region_list(shared_region);
+            free_shared_region_list(shared_region, 0);
             return_reply(reply_cap, -1);
             return 0;
         }
@@ -146,7 +146,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 							ret = dev->write(dev->device, buf, count);
 							free(buf);
 					} else {
-						fs_write(&(fdtable[file]), shared_region, count, reply_cap, fdtable[file].offset);
+						fs_write(&(fdtable[file]), shared_region, count, reply_cap, fdtable[file].offset, 0);
 						return 1;
 					}
 					
@@ -164,7 +164,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
             seL4_SetMR(0, ret);
             seL4_Send(reply_cap, reply);
-            free_shared_region_list(shared_region);
+            free_shared_region_list(shared_region, 0);
 			return 0;
 }
 
@@ -210,7 +210,7 @@ int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory * pd){
         dprintf(0, "in sos_stat %s count is %d \n", buf,count);
 		//After extracting the string, we don't need the shared_region for the name anymore, we can store
 		//the shared region for the stat block instead.
-		free_shared_region_list(shared_region);	
+		free_shared_region_list(shared_region, 0);	
 		shared_region = get_shared_region(user_stat, size, pd, fdReadOnly);	
 		fs_stat(buf, shared_region, reply_cap);
 		return 1;

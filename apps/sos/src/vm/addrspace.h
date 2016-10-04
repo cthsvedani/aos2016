@@ -69,7 +69,7 @@ region * new_region(pageDirectory * pd, seL4_Word start,
 region * find_region(pageDirectory * pd, seL4_Word vAddr);
 
 void free_region_list(region* head);
-void free_shared_region_list(shared_region * head);
+void free_shared_region_list(shared_region * head, int swapping);
 void free_buffer(char* buf, int count);
 
 int vm_fault(pageDirectory * pd,seL4_Word addr, int write);

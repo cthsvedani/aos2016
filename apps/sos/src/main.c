@@ -103,6 +103,7 @@ void handle_syscall(seL4_Word badge, int num_args) {
 
     /* Process system call */
     switch (syscall_number) {
+        dprintf(0, "Handle syscall %d\n", syscall_number);
     case SOS_SYS_READ:
         {
 			//For more complicated argument unpacking, we will use wrapper functions.

@@ -5,7 +5,7 @@
 
 #include <sys/stat.h>
 
-#define verbose 0 
+#define verbose 5 
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -61,6 +61,7 @@ void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t 
     fs_req[*token]->fdtable = f_ptr;
     fs_req[*token]->count = count;
     fs_req[*token]->read = 0;
+    fs_req[*token]->swapping = swapping;
 
 	count = (count < 4096 ) ? count : 4096;	
     rpc_stat_t  ret = nfs_read((fhandle_t*)f_ptr->file, f_ptr->offset, count, fs_read_complete, (uintptr_t)token);
@@ -77,7 +78,7 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 	seL4_MessageInfo_t tag;
 	if(status == NFS_OK){
         req->fdtable->offset += count;
-        put_to_shared_region_n(&(req->s_region), (char*) data, count);
+        put_to_shared_region_n(&(req->s_region), (char*) data, count,req->swapping);
         req->count -= count;
         req->read += count;
         if(count != 0 && req->count > 0 ) {
@@ -88,7 +89,7 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 			tag = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0, req->read);
 		} else {
-			free_shared_region_list(req->s_region);
+			free_shared_region_list(req->s_region, req->swapping);
 			fs_free_index(*i);
 			free(i);
 			jump = 1;
@@ -104,7 +105,7 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 		cspace_delete_cap(cur_cspace, req->reply);
 	}	
     dprintf(1, "Read Done with %d Bytes\n", req->read);
-	free_shared_region_list(req->s_region);
+	free_shared_region_list(req->s_region, req->swapping);
 	fs_free_index(*i);
 	free(i);
 }
@@ -213,7 +214,7 @@ void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, ch
 	seL4_Send(req->reply, tag);
 	cspace_delete_cap(cur_cspace, req->reply);
 	free(req->kbuff);
-	free_shared_region_list(req->s_region);
+	free_shared_region_list(req->s_region, 0);
 	fs_free_index(t);
 	free((void*)token);
 }
@@ -340,9 +341,10 @@ void fs_close(fdnode* fdtable, int index){
 	fdtable[index].permissions = 0;
 }
 void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, int offset, int swapping){
+    dprintf(4, "in fs_write swapping %d\n", swapping);
 	uint32_t * i =	malloc(sizeof(uint32_t));
 	if(i == NULL){
-		free_shared_region_list(reg);
+		free_shared_region_list(reg, swapping);
 		if(reply != 0) reply_failed(reply);
 		return;	
 	}
@@ -350,7 +352,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 	*i = fs_next_index();
 	if(*i == -1){
 		free(i);
-		free_shared_region_list(reg);
+		free_shared_region_list(reg, swapping);
 		if(reply != 0) reply_failed(reply);
 		return;
 	}
@@ -361,6 +363,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 	fs_req[*i]->data = 0;
 	fs_req[*i]->count = 0;
 	fs_req[*i]->kbuff = (char*)reg;
+    fs_req[*i]->swapping = swapping;
 
 	for(int j = 0; j < WRITE_MULTI; j++){
 		size_t size = reg->size;
@@ -368,8 +371,9 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 			size = 1024;
 		}
         //not swapping
+        seL4_Word sos_vaddr;
         if(!swapping) {
-            seL4_Word sos_vaddr = get_user_translation(reg->user_addr, reg->user_pd);
+            sos_vaddr = get_user_translation(reg->user_addr, reg->user_pd);
         } else {
             sos_vaddr = reg->user_addr;
         }
@@ -386,9 +390,11 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 			if(!reg) break;
 		}
 	}
+    dprintf(4, "fs_write done\n");
 }
 
 void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int count){
+    dprintf(4, "in fs_write_complete\n");
 	uint32_t * i = (uint32_t*) token;
 	fs_request * req = fs_req[*i];
 	fdnode * fd = req->fdtable;
@@ -420,7 +426,7 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 			tag = seL4_MessageInfo_new(0,0,0,1);
 			seL4_SetMR(0, req->data);
 		} else {
-			free_shared_region_list((shared_region*)fs_req[*i]->kbuff);
+			free_shared_region_list((shared_region*)fs_req[*i]->kbuff, fs_req[*i]->swapping);
 			fs_free_index(*i);
 			free(i);
 			jump = 1;
@@ -434,7 +440,7 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 		seL4_Send(fs_req[*i]->reply, tag);
 		cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
 	}
-	free_shared_region_list((shared_region*)fs_req[*i]->kbuff);
+	free_shared_region_list((shared_region*)fs_req[*i]->kbuff, fs_req[*i]->swapping);
 	fs_free_index(*i);
 	free(i);
 }

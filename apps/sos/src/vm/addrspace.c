@@ -207,11 +207,17 @@ void free_region_list(region * head){
 	}
 } 
 
-void free_shared_region_list(shared_region * head){
+void free_shared_region_list(shared_region * head, int swapping){
 	while(head){
 		shared_region * tmp = head;
 		head = head->next;
-		unpin_frame_kvaddr(tmp->vbase - 1);
+        seL4_Word sos_vaddr;
+        if(!swapping) {
+            sos_vaddr = get_user_translation(tmp->user_addr, tmp->user_pd);
+        } else { 
+            sos_vaddr = tmp->user_addr;
+        }
+		unpin_frame_kvaddr(sos_vaddr - 1);
 		free(tmp);
 	}
 } 
@@ -220,10 +226,9 @@ void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
     int buffer_index = 0;
     dprintf(1, "in get_shared_buffer with size %d\n", count);
     while(shared_region) {
-        dprintf(1, "shared_region%d addr 0x%x, size %d \n", i, shared_region->vbase, shared_region->size);
         dprintf(1, "shared_region%d uaddr 0x%x, size %d \n", i, shared_region->user_addr, shared_region->size);
 		dprintf(1, "kbuf = 0x%x\n", buf);
-        seL4_Word sos_vaddr = get_user_translation(shared_region->user_vaddr, user_pd);
+        seL4_Word sos_vaddr = get_user_translation(shared_region->user_addr, shared_region->user_pd);
         memcpy(buf + buffer_index, (void *)sos_vaddr, shared_region->size);
         buffer_index += shared_region->size;
         shared_region = shared_region->next; 
@@ -237,23 +242,24 @@ void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
 //the regions struct is only maintained by kernel is thus trusted.
 void put_to_shared_region(shared_region *shared_region, char *buf) {
     uint32_t buffer_index = 0;
+    seL4_Word sos_vaddr;
     dprintf(1, "put_to_shared entered \n");
     while(shared_region) {
-        dprintf(1, "region vbase is %x, with size %d\n", shared_region->vbase, shared_region->size);
         dprintf(1, "kernel buf is %x\n", buf);
-        memcpy((void *)shared_region->vbase, buf + buffer_index, shared_region->size);
+        sos_vaddr = get_user_translation(shared_region->user_addr, shared_region->user_pd);
+        memcpy((void*)sos_vaddr, buf + buffer_index, shared_region->size);
         buffer_index += shared_region->size;
         shared_region = shared_region->next;
     }
     dprintf(1, "put_to_shared exiting \n");
 }
 
-void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n, int translate) {
+void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n, int swapping) {
     uint32_t buffer_index = 0;
     dprintf(1, "put_to_shared_n entered \n");
     while(*s_region && (n > 0)) {
         seL4_Word sos_vaddr;
-        if(translate) {
+        if(!swapping) {
             sos_vaddr = get_user_translation((*s_region)->user_addr, (*s_region)->user_pd);
         } else {
             sos_vaddr = (*s_region)->user_addr;
@@ -261,13 +267,14 @@ void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n, int t
             
         dprintf(1, "region vbase is %x, with size %d\n", sos_vaddr, (*s_region)->size);
         dprintf(1, "kernel buf is %x\n", buf);
+
         if(n >= (*s_region)->size) {
             memcpy((void *)sos_vaddr, buf + buffer_index, (*s_region)->size);
             n -= (*s_region)->size;
 			buffer_index += (*s_region)->size;
             shared_region* tmp = (*s_region);
             *s_region = (*s_region)->next; 
-			unpin_frame_kvaddr(tmp->vbase);
+			unpin_frame_kvaddr(sos_vaddr - 1);
             free(tmp);
         } else {
 			dprintf(1, "Ending with n %d\n", n); 
@@ -300,7 +307,7 @@ shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirector
         //check defined user regions
         if(!pt_ckptr(user_vaddr, len, user_pd, mode)) {
             dprintf(0,"Invalid memory region\n");
-            free_shared_region_list(head);
+            free_shared_region_list(head, 0);
             return NULL;
         }   
 
@@ -326,13 +333,11 @@ shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirector
             tail->next = malloc(sizeof(region));
             //increment user_vaddr to find the next start of the page
             user_vaddr += tail->size;
-            dprintf(1, "in shared region %d, len %d, vbase 0x%x, size %d \n", i, len, tail->vbase, tail->size);
             tail = tail->next;
         //no more regions
         } else {
             tail->size = len;
             len = 0;
-            dprintf(1, "in shared region %d, len %d, vbase 0x%x, size %d \n", i, len, tail->vbase, tail->size);
         }
         tail->flags = seL4_AllRights;
         tail->next = NULL;

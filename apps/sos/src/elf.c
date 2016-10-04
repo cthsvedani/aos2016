@@ -20,7 +20,7 @@
 #include <ut_manager/ut.h>
 #include <mapping.h>
 
-#define verbose 1
+#define verbose 5
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -106,6 +106,7 @@ static int load_segment_into_vspace(pageDirectory * dest_as,
         /* First we need to create a frame */
 		uint32_t frame = frame_alloc();
 		if(!frame){
+            dprintf(2, "page_fault in elf.c\n");
 			frame = page_fault(dest_as, 0);
 		}
 //		printf("Using Frame #%d\n", frame);
