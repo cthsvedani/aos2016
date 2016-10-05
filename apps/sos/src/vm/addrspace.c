@@ -12,7 +12,7 @@
 
 #define PAGESIZE (1 << (seL4_PageBits))
 
-#define verbose 1 
+#define verbose 5 
 #include "sys/debug.h"
 #include "sys/panic.h"
 
@@ -77,8 +77,8 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
 		if(!frame){
 			dprintf(0,"No Mem, Getting new Frame\n");
             frame = page_fault(pd, 0); 
+            dprintf(0, "Returned from page_fault\n");
 		}
-		dprintf(0, "Blerg\n");
 		int err = sos_map_page(pd, frame, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
 		ftable[frame].pte->modified = 1;
 		ftable[frame].backingIndex = 0;
@@ -227,7 +227,7 @@ void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
     dprintf(1, "in get_shared_buffer with size %d\n", count);
     while(shared_region) {
         dprintf(1, "shared_region%d uaddr 0x%x, size %d \n", i, shared_region->user_addr, shared_region->size);
-		dprintf(1, "kbuf = 0x%x\n", buf);
+		dprintf(1, "user_pd is %d \n", shared_region->user_pd);
         seL4_Word sos_vaddr = get_user_translation(shared_region->user_addr, shared_region->user_pd);
         memcpy(buf + buffer_index, (void *)sos_vaddr, shared_region->size);
         buffer_index += shared_region->size;
@@ -245,7 +245,7 @@ void put_to_shared_region(shared_region *shared_region, char *buf) {
     seL4_Word sos_vaddr;
     dprintf(1, "put_to_shared entered \n");
     while(shared_region) {
-        dprintf(1, "kernel buf is %x\n", buf);
+        dprintf(1, "put to shared: size %d user_addr 0x%x -> kernel buf is 0x%x\n", shared_region->size, shared_region->user_addr, buf+buffer_index);
         sos_vaddr = get_user_translation(shared_region->user_addr, shared_region->user_pd);
         memcpy((void*)sos_vaddr, buf + buffer_index, shared_region->size);
         buffer_index += shared_region->size;
@@ -322,7 +322,7 @@ shared_region * get_shared_region(seL4_Word user_vaddr, size_t len, pageDirector
         //this is the start address  this page
         /*tail->vbase = sos_vaddr + PAGE_OFFSET(user_vaddr);*/
 		tail->user_addr = user_vaddr;
-        head->user_pd = user_pd;
+        tail->user_pd = user_pd;
         //the length left on this page
         size_t page_len = PAGE_ALIGN(user_vaddr + (1 << seL4_PageBits)) - user_vaddr;
 

@@ -1,6 +1,6 @@
 #include "cspace/cspace.h"
 
-#define verbose 1 
+#define verbose 2 
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -86,10 +86,17 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
     seL4_Word user_addr = seL4_GetMR(2);
     size_t count = seL4_GetMR(3);
     int file = seL4_GetMR(1);
+    dprintf(1, "in handle_sos_read, count is %d, fd is %d \n", count, file);
     shared_region *shared_region = get_shared_region(user_addr, count,
                                             pd, fdWriteOnly);
+    if(shared_region == NULL){
+        dprintf(0, "handle_sos_read, returning zero\n");
+        seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
+        seL4_SetMR(0, 0);
+        seL4_Send(reply_cap, reply);
+        return 0;		
+    }
 
-    dprintf(1, "in sos_sys_read, count is %d, fd is %d \n", count, file);
     if(file > 0 && file <= MAX_FILES){
         fdnode *f_ptr = &fdtable[file];
         if(!f_ptr && !(f_ptr->permissions == fdReadOnly || f_ptr->permissions == fdReadWrite)) {
@@ -104,7 +111,7 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
                 panic("Buf allocation failed in read\n");
             }
             fdDevice* dev = (fdDevice*)fdtable[file].file;
-            get_shared_buffer(shared_region, count, buf);
+            //get_shared_buffer(shared_region, count, buf);
             dev->read(dev->device, buf, count, reply_cap, shared_region);
         } else if(f_ptr->type == fdFile) {
             fs_read(f_ptr, shared_region, reply_cap, count, f_ptr->offset, 0);
@@ -123,10 +130,11 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             seL4_Word user_addr = seL4_GetMR(2);
             size_t count = seL4_GetMR(3);
 
-            dprintf(0, "in sos_sys_write, count is %d, fd is %d \n", count, file);
+            dprintf(0, "in handle_sos_write, count is %d, fd is %d \n", count, file);
             shared_region *shared_region = get_shared_region(user_addr, count, 
                                                     pd, fdReadOnly);
 			if(shared_region == NULL){
+                dprintf(0, "handle_sos_write, returning zero\n");
 				seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
 				seL4_SetMR(0, 0);
 				seL4_Send(reply_cap, reply);
@@ -224,6 +232,7 @@ int handle_sos_getdirent(seL4_CPtr reply_cap, pageDirectory * pd){
 		shared_region * shared_region = get_shared_region(user_addr, count, pd, fdReadOnly);
         char *buf = malloc(count*sizeof(char));
 		fs_getDirEnt(buf, shared_region, reply_cap, pos, count);
+        dprintf(0, "handle_sos_getdirent returned\n");
 		return 1;
 }
 

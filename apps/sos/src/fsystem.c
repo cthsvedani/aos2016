@@ -67,8 +67,9 @@ void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t 
     rpc_stat_t  ret = nfs_read((fhandle_t*)f_ptr->file, f_ptr->offset, count, fs_read_complete, (uintptr_t)token);
     if(ret != RPC_OK) {
 		dprintf(0, "Failed with code %d\n", ret);
-    } 
-    dprintf(1, "fs_read returned with code %d\n", ret);
+    } else {
+        dprintf(1, "fs_read returned with code %d\n", ret);
+    }
 }
 
 void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int count, void *data){
@@ -179,11 +180,20 @@ void fs_getDirEnt(char* kbuff, shared_region * name_region, seL4_CPtr reply, int
 	fs_req[*token]->fdIndex = position;
 	fs_req[*token]->fdtable = (fdnode*)n; //Smuggling ints in pointers to give compilers heart attacks.
 	
-	nfs_readdir(&mnt_point , 0, fs_getDirEnt_complete, (uintptr_t)token);
-
+	rpc_stat_t ret = nfs_readdir(&mnt_point , 0, fs_getDirEnt_complete, (uintptr_t)token);
+    if(ret != RPC_OK) {
+		dprintf(0, "fs_getDirEnt failed with code %d\n", ret);
+    } else {
+        dprintf(1, "fs_getDirent returned with code %d\n", ret);
+    }
 }
 
 void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, char* file_names[], nfscookie_t nfscookie){
+	if(status == NFS_OK){
+        dprintf(0, "In fs_getDirEnt_complete, status NFS_OK\n");
+    } else {
+		dprintf(0, "fs_getDirEnt_complete failed with code %d\n", status);
+	}
 	uint32_t t = *(uint32_t*)token;
 	t = (t << 24) >> 24; //Drop the upper 24 bits
 	fs_request* req = fs_req[t];
@@ -341,9 +351,9 @@ void fs_close(fdnode* fdtable, int index){
 	fdtable[index].permissions = 0;
 }
 void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, int offset, int swapping){
-    dprintf(4, "in fs_write swapping %d\n", swapping);
 	uint32_t * i =	malloc(sizeof(uint32_t));
 	if(i == NULL){
+        dprintf(1, "in fs_write swapping, malloc failed\n");
 		free_shared_region_list(reg, swapping);
 		if(reply != 0) reply_failed(reply);
 		return;	
@@ -352,11 +362,13 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 	*i = fs_next_index();
 	if(*i == -1){
 		free(i);
+        dprintf(1, "in fs_write swapping, no free fs_req\n");
 		free_shared_region_list(reg, swapping);
 		if(reply != 0) reply_failed(reply);
 		return;
 	}
 
+    dprintf(1, "in fs_write swapping %d, f_ptr %d, count %d, reply %d, offset %d, i %d\n", swapping, f_ptr, count, reply, offset/4096, *i);
 	fs_req[*i]->reply = reply;
 	fs_req[*i]->fdIndex = count;
 	fs_req[*i]->fdtable = f_ptr;	
@@ -364,6 +376,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 	fs_req[*i]->count = 0;
 	fs_req[*i]->kbuff = (char*)reg;
     fs_req[*i]->swapping = swapping;
+
 
 	for(int j = 0; j < WRITE_MULTI; j++){
 		size_t size = reg->size;
@@ -379,6 +392,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
         }
 		if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)sos_vaddr,
 						 fs_write_complete, (uintptr_t)i) == RPC_OK){
+            dprintf(0,"Called NFS_WRITE\n");
 			reg->size -= size;
 			reg->user_addr += size;
 			if(reg->size <= 0){	
@@ -388,7 +402,9 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 			fs_req[*i]->count++;
 			fs_req[*i]->s_region = reg;
 			if(!reg) break;
-		}
+		} else {
+            dprintf(0, "NFS_WRITE_FAILED\n");
+        }
 	}
     dprintf(4, "fs_write done\n");
 }

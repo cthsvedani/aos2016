@@ -79,6 +79,6 @@ seL4_Word get_user_translation(seL4_Word user_vaddr, pageDirectory * user_pd);
 void get_shared_buffer(shared_region *shared_region, size_t count, char *buf);
 void free_shared_buffer(char * buf, size_t count);
 void put_to_shared_region(shared_region *shared_region, char *buf);
-void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n, int translate);
+void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n, int swapping);
 
 #endif

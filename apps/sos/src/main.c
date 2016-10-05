@@ -102,8 +102,8 @@ void handle_syscall(seL4_Word badge, int num_args) {
     assert(reply_cap != CSPACE_NULL);
 
     /* Process system call */
+    dprintf(0, "Handle syscall %d\n", syscall_number);
     switch (syscall_number) {
-        dprintf(0, "Handle syscall %d\n", syscall_number);
     case SOS_SYS_READ:
         {
 			//For more complicated argument unpacking, we will use wrapper functions.
@@ -187,9 +187,11 @@ void syscall_loop(seL4_CPtr ep) {
         if(badge & IRQ_EP_BADGE){
             /* Interrupt */
             if (badge & IRQ_BADGE_NETWORK) {
+                /*dprintf(0,"INTERRUPT: network \n");*/
                 network_irq();
             }
 			if(badge & IRQ_BADGE_CLOCK) {
+                /*dprintf(0,"INTERRUPT: timer \n");*/
                 timer_interrupt();
             }
         }else if(label == seL4_VMFault){

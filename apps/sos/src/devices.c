@@ -61,10 +61,12 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
 	if(buffLen >= len){
 		if(serialReadIndex < serialWriteIndex){
 			memcpy(buff, serialbuffer + serialReadIndex, len);
+            put_to_shared_region_n(&finish_region, buff, len, 0);
         }else{
             int buffer_left = IO_BUFFER_LENGTH - serialReadIndex;
             memcpy(buff, serialbuffer + serialReadIndex, buffer_left);
             memcpy(buff + buffer_left, serialbuffer, len - buffer_left); 
+            put_to_shared_region_n(&finish_region, buff, buffer_left + (len-buffer_left), 0);
 		}
         buffLen = 0;
         serialReadIndex = 0;

@@ -121,8 +121,9 @@ void pf_write_out(frame* fr){
 		uint32_t pfIndex;
 		if(fr->backingIndex){
 			pfIndex = fr->backingIndex - frameTop;
-		}
-		else pfIndex = pagefileIndex++;
+		} else {
+            pfIndex = pagefileIndex++;
+        }
 		uint32_t offset = fr->index;
 		shared_region * reg = malloc(sizeof(shared_region));
 		reg->user_addr = VMEM_START + (offset << seL4_PageBits); 
