@@ -243,7 +243,6 @@ void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
 void put_to_shared_region(shared_region *shared_region, char *buf) {
     uint32_t buffer_index = 0;
     seL4_Word sos_vaddr;
-    dprintf(1, "put_to_shared entered \n");
     while(shared_region) {
         dprintf(1, "put to shared: size %d user_addr 0x%x -> kernel buf is 0x%x\n", shared_region->size, shared_region->user_addr, buf+buffer_index);
         sos_vaddr = get_user_translation(shared_region->user_addr, shared_region->user_pd);
@@ -251,7 +250,6 @@ void put_to_shared_region(shared_region *shared_region, char *buf) {
         buffer_index += shared_region->size;
         shared_region = shared_region->next;
     }
-    dprintf(1, "put_to_shared exiting \n");
 }
 
 void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n, int swapping) {

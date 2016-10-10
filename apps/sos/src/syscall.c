@@ -159,7 +159,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 					}
 					
 				} 
-			}else if(file == 0){
+			} else if(file == 0) {
 				char *buf = malloc(sizeof(char) * count);
 				if(buf == NULL){
 					dprintf(0,"Malloc failed in sys_write\n");

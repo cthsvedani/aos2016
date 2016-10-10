@@ -2,6 +2,7 @@
 #include "nfs/nfs.h"
 #include "pagefile.h"
 #include "syscall.h"
+#include "events.h"
 
 #include <sys/stat.h>
 
@@ -16,6 +17,11 @@ void fsystemStart(){
 	assert(MAX_NFS_REQUESTS < 256); //We store some data in the higher bits of our nfs token.
 								 //Make sure it's seperate from our fs_request index!
 	register_timer(NFS_TIME, timeout, NULL);
+
+    register_event(GETDIRENT_COMPLETE, evt_getDirEnt_complete);
+    register_event(READ_COMPLETE, evt_read_complete);
+    register_event(WRITE_COMPLETE, evt_write_complete);
+
 	memset(fs_req, 0, MAX_NFS_REQUESTS*sizeof(fs_request*));	
 }
 
@@ -72,7 +78,14 @@ void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t 
     }
 }
 
-void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int count, void *data){
+void evt_read_complete(void *evt){
+    evt_read *event = (evt_read*)evt;
+    uintptr_t token = event->token;
+    nfs_stat_t status = event->status;
+    int count = event->count;
+    void *data = event->data;
+
+    free(event);
 	dprintf(1, "In fs_read_complete, read %d bytes \n", count);
 	uint32_t* i = (uint32_t*)token;
     fs_request * req = fs_req[*i];
@@ -80,6 +93,7 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 	if(status == NFS_OK){
         req->fdtable->offset += count;
         put_to_shared_region_n(&(req->s_region), (char*) data, count,req->swapping);
+        free(data);
         req->count -= count;
         req->read += count;
         if(count != 0 && req->count > 0 ) {
@@ -97,6 +111,7 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 			return;
 		}
 	} else if (req->reply != 0){
+        free(data);
 		dprintf(0, "Failed with code %d\n", status);
 		tag = seL4_MessageInfo_new(0,0,0,1);
 		seL4_SetMR(0, -1);
@@ -109,6 +124,19 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 	free_shared_region_list(req->s_region, 0);
 	fs_free_index(*i);
 	free(i);
+}
+
+void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int count, void *data){
+    evt_read *event = malloc(sizeof(evt_read));
+    event->token = token;
+    event->status = status;
+    event->count = count;
+    
+    void *buf = malloc(count * sizeof(char));
+    memcpy(buf, data, count);
+
+    event->data = buf;
+    emit(READ_COMPLETE,(void*)event);
 }
 
 void fs_stat(char* kbuff, shared_region* stat_region, seL4_CPtr reply){
@@ -169,7 +197,8 @@ void fs_getDirEnt(char* kbuff, shared_region * name_region, seL4_CPtr reply, int
 		conditional_panic(1,"fs_getDirEnt\n");
 	}
 	*token = fs_next_index();
-	if(*token < 0){
+	if(*token == -1){
+        free(token);
 		reply_failed(reply);
 		dprintf(0, "Nope\n");
 		return;
@@ -179,7 +208,7 @@ void fs_getDirEnt(char* kbuff, shared_region * name_region, seL4_CPtr reply, int
 	fs_req[*token]->s_region = name_region;
 	fs_req[*token]->fdIndex = position;
 	fs_req[*token]->fdtable = (fdnode*)n; //Smuggling ints in pointers to give compilers heart attacks.
-	
+    
 	rpc_stat_t ret = nfs_readdir(&mnt_point , 0, fs_getDirEnt_complete, (uintptr_t)token);
     if(ret != RPC_OK) {
 		dprintf(0, "fs_getDirEnt failed with code %d\n", ret);
@@ -188,12 +217,14 @@ void fs_getDirEnt(char* kbuff, shared_region * name_region, seL4_CPtr reply, int
     }
 }
 
-void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, char* file_names[], nfscookie_t nfscookie){
-	if(status == NFS_OK){
-        dprintf(0, "In fs_getDirEnt_complete, status NFS_OK\n");
-    } else {
-		dprintf(0, "fs_getDirEnt_complete failed with code %d\n", status);
-	}
+void evt_getDirEnt_complete(void* data){
+    evt_getDirEnt *event = (evt_getDirEnt*) data;
+    uintptr_t token = event->token;
+    nfs_stat_t status = event->status;
+    int num_files = event->num_files;
+    char **file_names = event->file_names;
+    nfscookie_t nfscookie = event->nfscookie;
+    free(event);
 	uint32_t t = *(uint32_t*)token;
 	t = (t << 24) >> 24; //Drop the upper 24 bits
 	fs_request* req = fs_req[t];
@@ -226,7 +257,33 @@ void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, ch
 	free(req->kbuff);
 	free_shared_region_list(req->s_region, 0);
 	fs_free_index(t);
-	free((void*)token);
+	free((uint32_t*)token);
+    free(file_names);
+}
+static int strcnt(char *str) {
+    for(int i = 0; i < MAX_FILE_SIZE; i++) {
+        if(str[i] == '\0') {
+            return i+1;
+        }
+    } 
+    return -1;
+}
+
+void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, char* file_names[], nfscookie_t nfscookie){
+    char **file_names2 = malloc(sizeof(char*) * num_files);
+    for(int i = 0; i < num_files; i++) {
+        int n = strcnt(file_names[i]);
+        file_names2[i] = malloc(sizeof(char) * n);
+        strncpy(file_names2[i], file_names[i], n);
+    }
+
+    evt_getDirEnt *event = malloc(sizeof(evt_getDirEnt));
+    event->token = token;
+    event->status = status;
+    event->num_files = num_files;
+    event->file_names = file_names2;
+    event->nfscookie = nfscookie;
+    emit(GETDIRENT_COMPLETE, (void*)event);
 }
 
 void fs_open(char* buff, fdnode* fdtable, fd_mode mode,seL4_CPtr reply){
@@ -350,6 +407,7 @@ void fs_close(fdnode* fdtable, int index){
 	fdtable[index].offset = 0;
 	fdtable[index].permissions = 0;
 }
+
 void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, int offset, int swapping){
 	uint32_t * i =	malloc(sizeof(uint32_t));
 	if(i == NULL){
@@ -392,7 +450,6 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
         }
 		if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)sos_vaddr,
 						 fs_write_complete, (uintptr_t)i) == RPC_OK){
-            dprintf(0,"Called NFS_WRITE\n");
 			reg->size -= size;
 			reg->user_addr += size;
 			if(reg->size <= 0){	
@@ -406,11 +463,15 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
             dprintf(0, "NFS_WRITE_FAILED\n");
         }
 	}
-    dprintf(4, "fs_write done\n");
 }
 
-void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int count){
-    dprintf(4, "in fs_write_complete\n");
+void evt_write_complete(void *data) {
+    evt_write *event = (evt_write*)data;
+    uintptr_t token = event->token;
+    nfs_stat_t status = event->status;
+    int count = event->count;
+    free(event);
+
 	uint32_t * i = (uint32_t*) token;
 	fs_request * req = fs_req[*i];
 	fdnode * fd = req->fdtable;
@@ -453,10 +514,22 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 		seL4_SetMR(0, -1);
 	}
 	if(req->reply != 0){
-		seL4_Send(fs_req[*i]->reply, tag);
-		cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
+        seL4_CPtr reply = fs_req[*i]->reply;
+        free_shared_region_list((shared_region*)fs_req[*i]->kbuff, fs_req[*i]->swapping);
+        fs_free_index(*i);
+        free(i);
+		seL4_Send(reply, tag);
+		cspace_delete_cap(cur_cspace, reply);
 	}
-	free_shared_region_list((shared_region*)fs_req[*i]->kbuff, fs_req[*i]->swapping);
-	fs_free_index(*i);
-	free(i);
+}
+
+void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int count){
+    evt_write *event = malloc(sizeof(evt_write));
+    if(!event){
+        panic("Nomem: fs_write_complete");
+    }
+    event->token = token;
+    event->status = status;
+    event->count = count;
+    emit(WRITE_COMPLETE,(void*)event);
 }

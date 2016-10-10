@@ -50,6 +50,7 @@
 #include <sos.h>
 #include "proc.h"
 #include "pagefile.h"
+#include "events.h"
 
 
 /* This is the index where a clients syscall enpoint will
@@ -85,6 +86,8 @@ struct fdnode *swapfile;
 
 seL4_CPtr _sos_ipc_ep_cap;
 seL4_CPtr _sos_interrupt_ep_cap;
+s_EventHandlers *event_listeners[MAX_EVENTS];
+n_Event *event_queue = NULL;
 
 /**
  * NFS mount point
@@ -133,9 +136,8 @@ void handle_syscall(seL4_Word badge, int num_args) {
 		{
 			blocking = 1;
 			sos_sleep(seL4_GetMR(1), reply_cap);
-			
+            break;
 		}
-		break;
 	case SOS_SYS_TIMESTAMP:
 		{
 			uint64_t time = time_stamp();
@@ -143,26 +145,26 @@ void handle_syscall(seL4_Word badge, int num_args) {
 			seL4_SetMR(0, (time >> 32));
 			seL4_SetMR(1, (time << 32) >> 32);
 			seL4_Send(reply_cap,reply);
+            break;
 		}
-		break;
 	case SOS_SYS_BRK:
-	{
-		uint32_t brk = sos_brk(seL4_GetMR(1), sosh.pd, sosh.heap);
-		seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
-		seL4_SetMR(0, brk);
-		seL4_Send(reply_cap, reply);
-	}
-		break;
+        {
+            uint32_t brk = sos_brk(seL4_GetMR(1), sosh.pd, sosh.heap);
+            seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,1);
+            seL4_SetMR(0, brk);
+            seL4_Send(reply_cap, reply);
+            break;
+        }
 	case SOS_SYS_STAT:
-	{
-		blocking = handle_sos_stat(reply_cap, sosh.pd);
-		break;
-	}
+        {
+            blocking = handle_sos_stat(reply_cap, sosh.pd);
+            break;
+        }
     case SOS_SYS_GETDIRENT:
-    {
-        blocking = handle_sos_getdirent(reply_cap, sosh.pd);
-        break;
-    }
+        {
+            blocking = handle_sos_getdirent(reply_cap, sosh.pd);
+            break;
+        }
     default:
         dprintf(0, "Unknown syscall %d\n", syscall_number);
         /* we don't want to reply to an unknown syscall */
@@ -219,6 +221,7 @@ void syscall_loop(seL4_CPtr ep) {
 			jump = 0;
 			pf_return();
 		}
+        handle_next_event();
     }
 }
 
@@ -501,7 +504,9 @@ int main(void) {
 
     /* Initialise timers */
     start_timer(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_CLOCK));
-    /* Start the user application */
+
+    /* Initialise event handlers */
+    init_events(event_listeners, MAX_EVENTS);
 	
     /* Initialise NFS */
 	fsystemStart();
@@ -509,7 +514,8 @@ int main(void) {
     pf_init();
 	wait_for_pf(_sos_interrupt_ep_cap); 
 
-	start_first_process(TTY_NAME, _sos_ipc_ep_cap);
+    /* Start the user application */
+    start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
    
     /* Wait on synchronous endpoint for IPC */
