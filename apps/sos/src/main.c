@@ -198,6 +198,7 @@ void syscall_loop(seL4_CPtr ep) {
             }
         }else if(label == seL4_VMFault){
 			if (badge & TTY_EP_BADGE){
+                dprintf(0, "USER: vmfault \n");
 				seL4_CPtr reply_cap;
 				reply_cap = cspace_save_reply_cap(cur_cspace);
 				assert(reply_cap != CSPACE_NULL);

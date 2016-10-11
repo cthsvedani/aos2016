@@ -157,6 +157,7 @@ void pf_return(){
 }
 void pf_fault_in(uint32_t Index, uint32_t frame, pageDirectory * pd, seL4_Word vaddr){
 	uint32_t pfIndex = Index - frameTop;
+    dprintf(0, "IN pf_fault_in pdindex %d to frame index %d\n", pfIndex, frame);
 	assert(frame);
 	shared_region * reg = malloc(sizeof(shared_region));
 	reg->user_addr = VMEM_START + (frame << seL4_PageBits); 

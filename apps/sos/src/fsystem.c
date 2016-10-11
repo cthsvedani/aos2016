@@ -72,9 +72,7 @@ void fs_read(fdnode *f_ptr, shared_region *stat_region, seL4_CPtr reply, size_t 
 	count = (count < 4096 ) ? count : 4096;	
     rpc_stat_t  ret = nfs_read((fhandle_t*)f_ptr->file, f_ptr->offset, count, fs_read_complete, (uintptr_t)token);
     if(ret != RPC_OK) {
-		dprintf(0, "Failed with code %d\n", ret);
-    } else {
-        dprintf(1, "fs_read returned with code %d\n", ret);
+		dprintf(0, "fs_read failed with code %d\n", ret);
     }
 }
 
@@ -271,9 +269,15 @@ static int strcnt(char *str) {
 
 void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, char* file_names[], nfscookie_t nfscookie){
     char **file_names2 = malloc(sizeof(char*) * num_files);
+    if(!file_names2) {
+        panic("Nomem: fs_getDirEnt");
+    }
     for(int i = 0; i < num_files; i++) {
         int n = strcnt(file_names[i]);
         file_names2[i] = malloc(sizeof(char) * n);
+        if(!file_names2[i]) {
+            panic("Nomem: fs_getDirEnt");
+        }
         strncpy(file_names2[i], file_names[i], n);
     }
 
@@ -448,6 +452,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
         } else {
             sos_vaddr = reg->user_addr;
         }
+        dprintf(0, "NFS_WRITE CALLED\n");
 		if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)sos_vaddr,
 						 fs_write_complete, (uintptr_t)i) == RPC_OK){
 			reg->size -= size;
@@ -465,6 +470,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 	}
 }
 
+/* Preconditions: The write was succesfull and we are not swapping */
 void evt_write_complete(void *data) {
     evt_write *event = (evt_write*)data;
     uintptr_t token = event->token;
@@ -475,61 +481,82 @@ void evt_write_complete(void *data) {
 	uint32_t * i = (uint32_t*) token;
 	fs_request * req = fs_req[*i];
 	fdnode * fd = req->fdtable;
+    dprintf(0, "NFS_WRITE_COMPLETE, swapping is %d \n", req->swapping);
+	seL4_MessageInfo_t tag;	
+
+    if(req->s_region != NULL){
+        size_t size = req->s_region->size;
+        if(size > 1024){
+            size = 1024;
+        }
+        seL4_Word sos_vaddr = get_user_translation(req->s_region->user_addr, req->s_region->user_pd);
+        nfs_write((fhandle_t*)(fd->file), fd->offset, size,
+                (void*)sos_vaddr, fs_write_complete, (uintptr_t)i);
+        req->s_region->size -= size;
+        req->s_region->user_addr += size;
+        if(req->s_region->size <= 0){
+            req->s_region = req->s_region->next;
+        }
+        fd->offset += size;	
+        return;	
+    } else {
+        req->count--;
+        if(req->count != 0){				
+            return;
+        }
+    }
+
+    tag = seL4_MessageInfo_new(0,0,0,1);
+    seL4_SetMR(0, req->data);
+    seL4_CPtr reply = req->reply;
+    free_shared_region_list((shared_region*)fs_req[*i]->kbuff, fs_req[*i]->swapping);
+    fs_free_index(*i);
+    free(i);
+    seL4_Send(reply, tag);
+    cspace_delete_cap(cur_cspace, reply);
+}
+
+void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int count){
+	uint32_t * i = (uint32_t*) token;
+	fs_request * req = fs_req[*i];
+	fdnode * fd = req->fdtable;
+    dprintf(0, "in FS_WRITE_COMPLETE, swapping is %d \n", req->swapping);
 	seL4_MessageInfo_t tag;	
 	req->data += count;
-	if(status == NFS_OK){
-		if(req->s_region != NULL){
-			size_t size = req->s_region->size;
-			if(size > 1024){
-				size = 1024;
-			}
-            seL4_Word sos_vaddr = get_user_translation(req->s_region->user_addr, req->s_region->user_pd);
-			nfs_write((fhandle_t*)(fd->file), fd->offset, size,
-					(void*)sos_vaddr, fs_write_complete, (uintptr_t)i);
-			req->s_region->size -= size;
-			req->s_region->user_addr += size;
-			if(req->s_region->size <= 0){
-				req->s_region = req->s_region->next;
-			}
-			fd->offset += size;	
-			return;	
-		} else {
-			req->count--;
-			if(req->count != 0){				
-				return;
-			}
-		}
-		if(req->reply != 0){
-			tag = seL4_MessageInfo_new(0,0,0,1);
-			seL4_SetMR(0, req->data);
-		} else {
-			free_shared_region_list((shared_region*)fs_req[*i]->kbuff, fs_req[*i]->swapping);
-			fs_free_index(*i);
-			free(i);
-			jump = 1;
-			return;
-		}
-	} else if(req->reply != 0){
+
+    if(status != NFS_OK && req->reply) {
 		tag = seL4_MessageInfo_new(0,0,0,1);
 		seL4_SetMR(0, -1);
-	}
-	if(req->reply != 0){
         seL4_CPtr reply = fs_req[*i]->reply;
         free_shared_region_list((shared_region*)fs_req[*i]->kbuff, fs_req[*i]->swapping);
         fs_free_index(*i);
         free(i);
 		seL4_Send(reply, tag);
 		cspace_delete_cap(cur_cspace, reply);
-	}
-}
-
-void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int count){
-    evt_write *event = malloc(sizeof(evt_write));
-    if(!event){
-        panic("Nomem: fs_write_complete");
+    } else if(status != NFS_OK) {
+        panic("swapping failed");
+        return;
     }
-    event->token = token;
-    event->status = status;
-    event->count = count;
-    emit(WRITE_COMPLETE,(void*)event);
+
+    if(req->swapping) {
+        req->count--;
+        if(req->count != 0){				
+            return;
+        }
+
+        free_shared_region_list((shared_region*)fs_req[*i]->kbuff, fs_req[*i]->swapping);
+        fs_free_index(*i);
+        free(i);
+        jump = 1;
+        return;
+    } else {
+        evt_write *event = malloc(sizeof(evt_write));
+        if(!event){
+            panic("Nomem: fs_write_complete");
+        }
+        event->token = token;
+        event->status = status;
+        event->count = count;
+        emit(WRITE_COMPLETE,(void*)event);
+    }
 }
