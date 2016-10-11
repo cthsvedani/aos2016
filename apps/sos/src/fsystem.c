@@ -438,36 +438,56 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 	fs_req[*i]->count = 0;
 	fs_req[*i]->kbuff = (char*)reg;
     fs_req[*i]->swapping = swapping;
-
-
-	for(int j = 0; j < WRITE_MULTI; j++){
-		size_t size = reg->size;
-		if(size > 1024){
-			size = 1024;
-		}
-        //not swapping
-        seL4_Word sos_vaddr;
-        if(!swapping) {
-            sos_vaddr = get_user_translation(reg->user_addr, reg->user_pd);
-        } else {
+    
+    //do multiple writes for swapping (all writes on same page)
+    if(fs_req[*i]->swapping) {
+        for(int j = 0; j < WRITE_MULTI; j++){
+            size_t size = reg->size;
+            if(size > 1024){
+                size = 1024;
+            }
+            //not swapping
+            seL4_Word sos_vaddr;
             sos_vaddr = reg->user_addr;
+            if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)sos_vaddr,
+                             fs_write_complete, (uintptr_t)i) == RPC_OK){
+                reg->size -= size;
+                reg->user_addr += size;
+                if(reg->size <= 0){	
+                    reg = reg->next;
+                }
+                f_ptr->offset += size;
+                fs_req[*i]->count++;
+                fs_req[*i]->s_region = reg;
+                if(!reg) break;
+            } else {
+                dprintf(0, "NFS_WRITE_FAILED\n");
+            }
         }
+    //currently, multiple writes for spanning different pages is not working
+    } else {
+        size_t size = reg->size;
+        if(size > 1024){
+            size = 1024;
+        }
+        seL4_Word sos_vaddr;
+        sos_vaddr = get_user_translation(reg->user_addr, reg->user_pd);
         dprintf(0, "NFS_WRITE CALLED\n");
-		if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)sos_vaddr,
-						 fs_write_complete, (uintptr_t)i) == RPC_OK){
-			reg->size -= size;
-			reg->user_addr += size;
-			if(reg->size <= 0){	
-				reg = reg->next;
-			}
-			f_ptr->offset += size;
-			fs_req[*i]->count++;
-			fs_req[*i]->s_region = reg;
-			if(!reg) break;
-		} else {
+        if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)sos_vaddr,
+                         fs_write_complete, (uintptr_t)i) == RPC_OK){
+            reg->size -= size;
+            reg->user_addr += size;
+            if(reg->size <= 0){	
+                reg = reg->next;
+            }
+            f_ptr->offset += size;
+            fs_req[*i]->count++;
+            fs_req[*i]->s_region = reg;
+            if(!reg) break;
+        } else {
             dprintf(0, "NFS_WRITE_FAILED\n");
         }
-	}
+    }
 }
 
 /* Preconditions: The write was succesfull and we are not swapping */
