@@ -35,7 +35,7 @@
 
 #include <autoconf.h>
 
-#define verbose 1
+#define verbose 5
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -184,6 +184,7 @@ void syscall_loop(seL4_CPtr ep) {
         seL4_Word label;
         seL4_MessageInfo_t message;
 
+        handle_next_event();
         message = seL4_Wait(ep, &badge);
         label = seL4_MessageInfo_get_label(message);
         if(badge & IRQ_EP_BADGE){
@@ -495,6 +496,7 @@ int main(void) {
     network_init(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_NETWORK));
 
     /* Initialise serial port */
+    /*register_event(SERIAL_FINISH_FUNC, evt_serial_finish);*/
     serial = serial_init();
 	serial_register_handler(serial, serial_callback);
 
@@ -518,7 +520,6 @@ int main(void) {
     /* Start the user application */
     start_first_process(TTY_NAME, _sos_ipc_ep_cap);
 
-   
     /* Wait on synchronous endpoint for IPC */
     dprintf(0, "\nSOS entering syscall loop\n");
 

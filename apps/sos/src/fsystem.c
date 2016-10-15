@@ -21,6 +21,7 @@ void fsystemStart(){
     register_event(GETDIRENT_COMPLETE, evt_getDirEnt_complete);
     register_event(READ_COMPLETE, evt_read_complete);
     register_event(WRITE_COMPLETE, evt_write_complete);
+    register_event(STAT_COMPLETE, evt_stat_complete);
 
 	memset(fs_req, 0, MAX_NFS_REQUESTS*sizeof(fs_request*));	
 }
@@ -155,6 +156,20 @@ void fs_stat(char* kbuff, shared_region* stat_region, seL4_CPtr reply){
 	nfs_lookup(&mnt_point ,kbuff, fs_stat_complete, (uintptr_t)token);
 }
 
+void evt_stat_complete(void* data){
+	dprintf(0, "In evt_stat_complete\n");
+    evt_stat *event = (evt_stat*)data;
+    stat_t *ret = event->ret;
+    fs_request *req = event->req;
+    free(event);
+	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
+    put_to_shared_region(req->s_region, (char*) ret);
+    seL4_SetMR(0, 0);
+	seL4_Send(req->reply, tag);
+	/*cspace_delete_cap(cur_cspace, req->reply);*/
+	/*free(req->kbuff);*/
+}
+
 void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t *fattr){
 	dprintf(0, "In fs_stat_complete\n");
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
@@ -164,8 +179,7 @@ void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t
 		stat_t* ret = (stat_t*)req->kbuff;
 		if(S_ISREG(fattr->mode)){
 			ret->st_type = 1;
-		}
-		else{
+		} else {
 			ret->st_type = 2;
 		}
 		ret->st_fmode = fattr->mode;
@@ -173,16 +187,19 @@ void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t
 		uint64_t time = time_stamp()/1000;
 		ret->st_crtime = time;
 		ret->st_actime = time;
-		put_to_shared_region(req->s_region, (char*) ret);
-		seL4_SetMR(0, 0);
-	}
-	else{
+
+        //need to emit event since we can page_fault
+        evt_stat *event = malloc(sizeof(evt_stat));
+        event->ret = ret;
+        event->req = req;
+        emit(STAT_COMPLETE, (void*)event);
+	} else {
 		dprintf(0, "Failed with code %d\n", status);
 		seL4_SetMR(0, -1);
+        seL4_Send(fs_req[*i]->reply, tag);
+        cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
+        free(fs_req[*i]->kbuff);
 	}
-	seL4_Send(fs_req[*i]->reply, tag);
-	cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
-	free(fs_req[*i]->kbuff);
 	fs_free_index(*i);
 	free(i);
 }
@@ -446,7 +463,6 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
             if(size > 1024){
                 size = 1024;
             }
-            //not swapping
             seL4_Word sos_vaddr;
             sos_vaddr = reg->user_addr;
             if(nfs_write((fhandle_t*)f_ptr->file, f_ptr->offset, size, (void*)sos_vaddr,
@@ -483,7 +499,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
             f_ptr->offset += size;
             fs_req[*i]->count++;
             fs_req[*i]->s_region = reg;
-            if(!reg) break;
+            if(!reg) return;
         } else {
             dprintf(0, "NFS_WRITE_FAILED\n");
         }

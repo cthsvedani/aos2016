@@ -11,7 +11,7 @@
 #define MAX_NFS_REQUESTS 20 
 #define NFS_TIME 100000
 #define MAX_REQUEST_SIZE 4096
-#define WRITE_MULTI 1	
+#define WRITE_MULTI 4	
 #define MAX_FILE_SIZE 1024
 
 typedef struct request{
@@ -47,6 +47,7 @@ typedef struct event_write{
     int count;
 }evt_write;
 
+
 typedef struct {
   int		 st_type;    /* file type */
   int		 st_fmode;   /* access mode */
@@ -54,6 +55,11 @@ typedef struct {
   long		 st_crtime;   /* file creation time (ms since booting) */
   long		 st_actime;   /* file last access (open) time (ms since booting) */
 } stat_t;
+
+typedef struct event_stat{
+    stat_t *ret;
+    fs_request *req;
+}evt_stat;
 
 fs_request * fs_req[MAX_NFS_REQUESTS];
 
@@ -75,6 +81,7 @@ void evt_write_complete(void *data);
 
 void fs_stat(char* name, shared_region* stat_region, seL4_CPtr reply);
 void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t * fattr);
+void evt_stat_complete(void* data);
 
 void fs_getDirEnt(char* kbuff, shared_region* name_region, seL4_CPtr reply ,int position, size_t n);
 void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, char* file_names[], nfscookie_t nfscookie);

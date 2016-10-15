@@ -84,6 +84,7 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
             //Make sure you use paranthesis when you do aritmetic!
             offset = (newlineIndex - serialReadIndex) + 1;
 			memcpy(buff, serialbuffer + serialReadIndex, offset);
+            put_to_shared_region_n(&finish_region, buff, offset, 0);
             dprintf(0, "calculating offset newlineindex > serial index\n");
             dprintf(0, "newlineindex %d, serialreadindex %d, offset %d\n", newlineIndex, serialReadIndex, offset);
 		} else {
@@ -91,6 +92,7 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
             offset = buffer_left + newlineIndex;
             memcpy(buff, serialbuffer + serialReadIndex, buffer_left);
             memcpy(buff + buffer_left, serialbuffer, offset - buffer_left + 1); 
+            put_to_shared_region_n(&finish_region, buff, buffer_left + (offset - buffer_left +1 ), 0);
             dprintf(0, "calculating offset neslineindex !> serial index\n");
 		}
         buffLen -= offset;
@@ -108,7 +110,7 @@ void read_finish(char* buff, int len, seL4_CPtr reply, shared_region *shared_reg
 
 void return_reply(int ret, seL4_CPtr fin_reply) {
     dprintf(0, "replying with %d, containing finish_buff %s", ret, finish_buff);
-    put_to_shared_region(finish_region, finish_buff);
+    /*put_to_shared_region(finish_region, finish_buff);*/
     seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
     seL4_SetMR(0, ret);
     seL4_Send(fin_reply, reply);

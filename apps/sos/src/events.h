@@ -5,6 +5,8 @@ typedef enum Events{
     GETDIRENT_COMPLETE,
     READ_COMPLETE,
     WRITE_COMPLETE,
+    SERIAL_FINISH_FUNC,
+    STAT_COMPLETE,
     MAX_EVENTS
 }e_Events;
 

@@ -1,6 +1,6 @@
 #include "cspace/cspace.h"
 
-#define verbose 2 
+#define verbose 5 
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -112,8 +112,10 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             }
             fdDevice* dev = (fdDevice*)fdtable[file].file;
             //get_shared_buffer(shared_region, count, buf);
+            dprintf(2, "Calling dev_read\n");
             dev->read(dev->device, buf, count, reply_cap, shared_region);
         } else if(f_ptr->type == fdFile) {
+            dprintf(2, "Calling fs_read\n");
             fs_read(f_ptr, shared_region, reply_cap, count, f_ptr->offset, 0);
         } else {
             free_shared_region_list(shared_region, 0);

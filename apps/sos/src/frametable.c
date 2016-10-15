@@ -16,6 +16,12 @@ static seL4_CPtr pd;
 static int bootstrapFrames;
 static int clock_ptr = 0;
 
+/*void debug_frametable() {*/
+    /*for(int i = frameBot ; i < frameTop; i++) {*/
+
+    /*}*/
+/*}*/
+
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) { 
     assert(!_ftInit);
 	pd = seL4_CapInitThreadPD;
@@ -45,7 +51,7 @@ void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace) {
 void freeList_init(seL4_Word count){
 	frameTop = count - 1;
 	frameBot = bootstrapFrames;
-    frameBot = count - 21;
+    frameBot = count - 11;
     for(int i = frameBot; i < frameTop; i++){
         ftable[i].index = i;
 		ftable[i].pinned = 0;

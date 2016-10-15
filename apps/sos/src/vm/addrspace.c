@@ -44,7 +44,7 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
 	uint32_t dindex = VADDR_TO_PDINDEX(addr);
     uint32_t tindex = VADDR_TO_PTINDEX(addr);
 	if(pd->pTables[dindex] != 0 && pd->pTables[dindex]->frameIndex[tindex].index > frameTop){
-		dprintf(0, "Page Fault, PF Index of %u\n", pd->pTables[dindex]->frameIndex[tindex].index - frameTop);
+		dprintf(0, "Page Fault, Page is in PF index %u\n", pd->pTables[dindex]->frameIndex[tindex].index - frameTop);
 		page_fault(pd, addr);
 		return 0;
 	} else if(pd->pTables[dindex] != 0 && pd->pTables[dindex]->frameIndex[tindex].index != 0) {
