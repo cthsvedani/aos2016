@@ -6,7 +6,7 @@
 
 #include <sys/stat.h>
 
-#define verbose 5 
+#define verbose 1 
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -161,13 +161,19 @@ void evt_stat_complete(void* data){
     evt_stat *event = (evt_stat*)data;
     stat_t *ret = event->ret;
     fs_request *req = event->req;
-    free(event);
+    uint32_t* i = event->i;
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
     put_to_shared_region(req->s_region, (char*) ret);
+	dprintf(0, "In evt_stat_complete, put to shared completed\n");
+    dprintf(0, "evt fs_stat_complete, ret %d, req is %d, req->reply is %d\n", ret, req, req->reply);
     seL4_SetMR(0, 0);
-	seL4_Send(req->reply, tag);
-	/*cspace_delete_cap(cur_cspace, req->reply);*/
-	/*free(req->kbuff);*/
+    seL4_Send(req->reply, tag);
+    cspace_delete_cap(cur_cspace, req->reply);
+    free(req->kbuff);
+    free(event->ret);
+    free(event);
+    fs_free_index(*i);
+    free(i);
 }
 
 void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t *fattr){
@@ -176,7 +182,7 @@ void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t
 	uint32_t* i = (uint32_t*)token;
 	if(status == NFS_OK){
 		fs_request * req = fs_req[*i];
-		stat_t* ret = (stat_t*)req->kbuff;
+		stat_t* ret = malloc(sizeof(stat_t));
 		if(S_ISREG(fattr->mode)){
 			ret->st_type = 1;
 		} else {
@@ -190,8 +196,10 @@ void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t
 
         //need to emit event since we can page_fault
         evt_stat *event = malloc(sizeof(evt_stat));
+        event->i = i;
         event->ret = ret;
         event->req = req;
+        dprintf(0, "fs_stat_complete, ret %d, req is %d, req->reply is %d\n", ret, req, req->reply);
         emit(STAT_COMPLETE, (void*)event);
 	} else {
 		dprintf(0, "Failed with code %d\n", status);
@@ -199,9 +207,9 @@ void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t
         seL4_Send(fs_req[*i]->reply, tag);
         cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
         free(fs_req[*i]->kbuff);
+        fs_free_index(*i);
+        free(i);
 	}
-	fs_free_index(*i);
-	free(i);
 }
 
 void fs_getDirEnt(char* kbuff, shared_region * name_region, seL4_CPtr reply, int position, size_t n){
@@ -556,7 +564,7 @@ void fs_write_complete(uintptr_t token, nfs_stat_t status, fattr_t * fattr, int 
 	uint32_t * i = (uint32_t*) token;
 	fs_request * req = fs_req[*i];
 	fdnode * fd = req->fdtable;
-    dprintf(0, "in FS_WRITE_COMPLETE, swapping is %d \n", req->swapping);
+    dprintf(1, "in FS_WRITE_COMPLETE, swapping is %d \n", req->swapping);
 	seL4_MessageInfo_t tag;	
 	req->data += count;
 

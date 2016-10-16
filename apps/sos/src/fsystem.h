@@ -57,6 +57,7 @@ typedef struct {
 } stat_t;
 
 typedef struct event_stat{
+    uintptr_t i;
     stat_t *ret;
     fs_request *req;
 }evt_stat;

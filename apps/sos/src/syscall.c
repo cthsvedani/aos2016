@@ -126,6 +126,13 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 
     return 1;
 }
+static void print_chars(char *buf, int count) {
+    dprintf(0, "printing: ");
+    for(int i=0; i<count; i++) {
+        dprintf(0, "%c", buf[i]);
+    }
+    dprintf(0, "\n");
+}
 
 int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 			int file = seL4_GetMR(1);
@@ -152,6 +159,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 							if(buf == NULL){
 								dprintf(0,"Malloc failed in sys_write\n");
 							}
+                            dprintf(0, "in sos_write serial, %s\n", buf);
 							get_shared_buffer(shared_region, count, buf);
 							ret = dev->write(dev->device, buf, count);
 							free(buf);
@@ -167,6 +175,7 @@ int handle_sos_write(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
 					dprintf(0,"Malloc failed in sys_write\n");
 				}
 				get_shared_buffer(shared_region, count, buf);
+                print_chars(buf, count);
 				ret = out(outDev, buf, count);
 				free(buf);
 			}
@@ -208,23 +217,28 @@ int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory * pd){
 		seL4_Word user_addr = seL4_GetMR(1);
 		size_t count = seL4_GetMR(2);
 		seL4_Word user_stat = seL4_GetMR(3);
-		size_t size = count;
-		if(size < sizeof(stat_t)){
-			size = sizeof(stat_t);
+
+        char *path_buf = malloc(count*sizeof(char));
+		if(path_buf == NULL){
+			panic("nomem: in sos_stat");
 		}
 		shared_region * shared_region = get_shared_region(user_addr, count+1, pd, fdReadOnly);
-		char *buf = malloc(size*sizeof(char));//We need to make sure the buffer is big enough to take the return as well!
-		if(buf == NULL){
-			dprintf(0,"Malloc failed in sos_stat\n");
-		}
-		get_shared_buffer(shared_region, count+1, buf);
-        dprintf(0, "in sos_stat %s count is %d \n", buf,count);
-		//After extracting the string, we don't need the shared_region for the name anymore, we can store
-		//the shared region for the stat block instead.
-		free_shared_region_list(shared_region, 0);	
-		shared_region = get_shared_region(user_stat, size, pd, fdReadOnly);	
-		fs_stat(buf, shared_region, reply_cap);
+        get_shared_buffer(shared_region, count+1, path_buf);
+        dprintf(0, "in sos_stat %s count is %d \n", path_buf,count);
+        free_shared_region_list(shared_region, 0);
+
+        shared_region = get_shared_region(user_stat, sizeof(stat_t), pd, fdReadOnly);
+		fs_stat(path_buf, shared_region, reply_cap);
 		return 1;
+
+		/*char *buf = malloc(size*sizeof(char));//We need to make sure the buffer is big enough to take the return as well!*/
+		/*get_shared_buffer(shared_region, count+1, buf);*/
+		/*//After extracting the string, we don't need the shared_region for the name anymore, we can store*/
+		/*//the shared region for the stat block instead.*/
+		/*free_shared_region_list(shared_region, 0);	*/
+		/*shared_region = get_shared_region(user_stat, size, pd, fdReadOnly);	*/
+		/*fs_stat(buf, shared_region, reply_cap);*/
+		/*return 1;*/
 } 
 
 int handle_sos_getdirent(seL4_CPtr reply_cap, pageDirectory * pd){

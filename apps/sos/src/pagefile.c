@@ -11,7 +11,7 @@
 
 #include "sel4/types.h"
 
-#define verbose 5
+#define verbose 0
 #include <sys/debug.h>
 #include <sys/panic.h>
 
