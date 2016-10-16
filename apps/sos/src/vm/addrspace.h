@@ -63,6 +63,7 @@ pageDirectory* pageTable_create(void);
 void PD_destroy(pageDirectory * pd);
 void PT_destroy(pageTable * pt);
 
+void debug_regions(pageDirectory *pd);
 region * new_region(pageDirectory * pd, seL4_Word start,
 		size_t len, seL4_Word flags);
 

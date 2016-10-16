@@ -206,7 +206,7 @@ int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory * pd){
 		seL4_Word user_addr = seL4_GetMR(1);
 		size_t count = seL4_GetMR(2);
 		seL4_Word user_stat = seL4_GetMR(3);
-		size_t size = count;
+		size_t size = count + 1;
 		if(size < sizeof(stat_t)){
 			size = sizeof(stat_t);
 		}

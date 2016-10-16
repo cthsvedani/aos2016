@@ -18,6 +18,7 @@
 
 jmp_buf targ;
 
+
 pageDirectory* pageTable_create(void){
 	//Create a new Page Directory
 	pageDirectory* pd = malloc(sizeof(pageDirectory));
@@ -68,6 +69,8 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
 	}
 	region * reg = find_region(pd, addr); 
 	if(reg == NULL){
+        debug_frametable();
+        debug_regions(pd);
 		dprintf(0, "addr 0x%x is not a legal region!\n", addr);
 		seL4_TCB_ReadRegisters(sosh.tcb_cap, 0, 0, 2, &bob);
 		dprintf(0, "pc is 0x%x, sp is 0x%x\n", bob.pc, bob.sp);	
@@ -118,6 +121,15 @@ int page_fault(pageDirectory * pd, seL4_Word addr) {
 	return 0;
 }
 
+void debug_regions(pageDirectory *pd){
+    dprintf(0, "REGIONS \n");
+    region *head = pd->regions;
+    while(head) {
+        dprintf(0, "region: 0x%x, size 0x%x, stack %d\n", head->vbase, head->size, head->flags & REGION_STACK);
+        head = head->next;
+    }
+}
+
 region * new_region(pageDirectory * pd, seL4_Word start,
 		size_t len, seL4_Word flags){
 // A define a new region, that we can compare against when we try
@@ -126,10 +138,10 @@ region * new_region(pageDirectory * pd, seL4_Word start,
         return NULL;
     }
 
-    if(start > PROCESS_IPC_BUFFER || (start + len > PROCESS_IPC_BUFFER && !(
-                    flags & REGION_STACK))){
-        return NULL;
-    }
+    /*if(start > PROCESS_IPC_BUFFER || (start + len > PROCESS_IPC_BUFFER && !(*/
+                    /*flags & REGION_STACK))){*/
+        /*return NULL;*/
+    /*}*/
 
 	region * reg = malloc(sizeof(region));
 	memset(reg, 0, sizeof(region));

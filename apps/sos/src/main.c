@@ -368,6 +368,8 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
 	
 
     /* Map in the IPC buffer for the thread */
+	new_region(sosh.pd, PROCESS_IPC_BUFFER, DEVICE_START - PROCESS_IPC_BUFFER,
+			VM_FAULT_READ | VM_FAULT_WRITE);
     err = sos_map_page(sosh.pd, sosh.ipc_frame,
                    PROCESS_IPC_BUFFER,
                    seL4_AllRights, seL4_ARM_Default_VMAttributes);

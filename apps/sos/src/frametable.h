@@ -18,6 +18,7 @@ typedef struct frameNode{
 int frameTop;
 int frameBot;
 frame* ftable;
+void debug_frametable();
 
 void frametable_init(seL4_Word low, seL4_Word high, cspace_t *cur_cspace);
 uint32_t frame_alloc(void);

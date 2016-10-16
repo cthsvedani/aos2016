@@ -151,6 +151,9 @@ void fs_stat(char* kbuff, shared_region* stat_region, seL4_CPtr reply){
 	fs_req[*token]->reply = reply;
 	fs_req[*token]->kbuff = kbuff;
 	fs_req[*token]->s_region = stat_region;
+
+    //TODO change this to pinning
+    put_to_shared_region(stat_region, kbuff);
 	
 	nfs_lookup(&mnt_point ,kbuff, fs_stat_complete, (uintptr_t)token);
 }
@@ -483,7 +486,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
             f_ptr->offset += size;
             fs_req[*i]->count++;
             fs_req[*i]->s_region = reg;
-            if(!reg) break;
+            if(!reg) return;
         } else {
             dprintf(0, "NFS_WRITE_FAILED\n");
         }
