@@ -177,17 +177,18 @@ frame* clock(int force){
 		if(hand == frameTop){
 			hand = frameBot;
 		}
-		while(ftable[i].pinned == 1 || ftable[i].pte->referenced){
-			if(!ftable[i].pinned){
-				ftable[i].pte->referenced = 0;
-				seL4_ARM_Page_Unmap(ftable[i].cptr);
-			}
+		/*while(ftable[i].pinned == 1 || ftable[i].pte->referenced){*/
+		while(ftable[i].pinned == 1){
+			/*if(!ftable[i].pinned){*/
+				/*ftable[i].pte->referenced = 0;*/
+				/*seL4_ARM_Page_Unmap(ftable[i].cptr);*/
+			/*}*/
 			i = hand++;
 			if(hand == frameTop){
 				 hand = frameBot;
 			}
             //dprintf(0, "clock tick \n");
-    }
+        }
         /*dprintf(0, "clock exit \n");*/
 		return &(ftable[i]);
 	}

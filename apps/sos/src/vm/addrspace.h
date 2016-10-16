@@ -82,4 +82,6 @@ void free_shared_buffer(char * buf, size_t count);
 void put_to_shared_region(shared_region *shared_region, char *buf);
 void put_to_shared_region_n(shared_region **s_region, char *buf, size_t n, int swapping);
 
+void unpin_shared_region(shared_region *shared_region);
+void pin_shared_region(shared_region *shared_region);
 #endif

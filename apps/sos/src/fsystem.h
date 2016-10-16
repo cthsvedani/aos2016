@@ -28,10 +28,6 @@ typedef struct request{
 
 typedef struct event_getDirEnt{
     uintptr_t token;
-    nfs_stat_t status;
-    int num_files;
-    nfscookie_t nfscookie;
-    char **file_names;
 }evt_getDirEnt;
 
 typedef struct event_read{

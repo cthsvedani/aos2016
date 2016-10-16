@@ -1,6 +1,6 @@
 #include "cspace/cspace.h"
 
-#define verbose 2 
+#define verbose 5 
 #include <sys/debug.h>
 #include <sys/panic.h>
 
@@ -112,8 +112,10 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
             }
             fdDevice* dev = (fdDevice*)fdtable[file].file;
             //get_shared_buffer(shared_region, count, buf);
+            dprintf(2, "calling serial_read\n");
             dev->read(dev->device, buf, count, reply_cap, shared_region);
         } else if(f_ptr->type == fdFile) {
+            dprintf(2, "calling fs_read\n");
             fs_read(f_ptr, shared_region, reply_cap, count, f_ptr->offset, 0);
         } else {
             free_shared_region_list(shared_region, 0);
@@ -213,14 +215,14 @@ int handle_sos_stat(seL4_CPtr reply_cap, pageDirectory * pd){
 		shared_region * shared_region = get_shared_region(user_addr, count+1, pd, fdReadOnly);
 		char *buf = malloc(size*sizeof(char));//We need to make sure the buffer is big enough to take the return as well!
 		if(buf == NULL){
-			dprintf(0,"Malloc failed in sos_stat\n");
+			panic("nomem:Malloc failed in sos_stat");
 		}
 		get_shared_buffer(shared_region, count+1, buf);
-        dprintf(0, "in sos_stat %s count is %d \n", buf,count);
 		//After extracting the string, we don't need the shared_region for the name anymore, we can store
 		//the shared region for the stat block instead.
 		free_shared_region_list(shared_region, 0);	
 		shared_region = get_shared_region(user_stat, size, pd, fdReadOnly);	
+        dprintf(0, "in sos_stat %s count is %d, shared_region 0x%x \n", buf,count,shared_region->user_addr);
 		fs_stat(buf, shared_region, reply_cap);
 		return 1;
 } 

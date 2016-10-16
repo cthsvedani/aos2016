@@ -137,10 +137,12 @@ void pin_frame(uint32_t index){
 
 void pin_frame_kvaddr(uint32_t kvaddr){
 	uint32_t index = ((kvaddr - VMEM_START) >> seL4_PageBits);
+    dprintf(0,"pinning 0x%x\n", index);
 	ftable[index].pinned = 1;
 }
 void unpin_frame_kvaddr(uint32_t kvaddr){
 	uint32_t index = ((kvaddr - VMEM_START) >> seL4_PageBits);
+    dprintf(0,"unpinning 0x%x\n", index);
 	ftable[index].pinned = 0;
 }
 

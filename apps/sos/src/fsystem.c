@@ -138,8 +138,8 @@ void fs_read_complete(uintptr_t token, nfs_stat_t status, fattr_t *fattr, int co
 }
 
 void fs_stat(char* kbuff, shared_region* stat_region, seL4_CPtr reply){
-	dprintf(0, "In fs_stat\n");
 	uint32_t* token = malloc(sizeof(uint32_t));
+	dprintf(0, "In fs_stat, stat %s, size of shared region %d\n", kbuff, stat_region->size);
 	if(!token){
 		reply_failed(reply);
 	}
@@ -153,7 +153,7 @@ void fs_stat(char* kbuff, shared_region* stat_region, seL4_CPtr reply){
 	fs_req[*token]->s_region = stat_region;
 
     //TODO change this to pinning
-    put_to_shared_region(stat_region, kbuff);
+    pin_shared_region(stat_region);
 	
 	nfs_lookup(&mnt_point ,kbuff, fs_stat_complete, (uintptr_t)token);
 }
@@ -162,13 +162,12 @@ void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t
 	dprintf(0, "In fs_stat_complete\n");
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
 	uint32_t* i = (uint32_t*)token;
+    fs_request * req = fs_req[*i];
 	if(status == NFS_OK){
-		fs_request * req = fs_req[*i];
 		stat_t* ret = (stat_t*)req->kbuff;
 		if(S_ISREG(fattr->mode)){
 			ret->st_type = 1;
-		}
-		else{
+		} else {
 			ret->st_type = 2;
 		}
 		ret->st_fmode = fattr->mode;
@@ -178,11 +177,11 @@ void fs_stat_complete(uintptr_t token, nfs_stat_t status, fhandle_t *fh, fattr_t
 		ret->st_actime = time;
 		put_to_shared_region(req->s_region, (char*) ret);
 		seL4_SetMR(0, 0);
-	}
-	else{
+	} else {
 		dprintf(0, "Failed with code %d\n", status);
 		seL4_SetMR(0, -1);
 	}
+    unpin_shared_region(req->s_region);
 	seL4_Send(fs_req[*i]->reply, tag);
 	cspace_delete_cap(cur_cspace, fs_req[*i]->reply);
 	free(fs_req[*i]->kbuff);
@@ -210,6 +209,8 @@ void fs_getDirEnt(char* kbuff, shared_region * name_region, seL4_CPtr reply, int
 	fs_req[*token]->fdIndex = position;
 	fs_req[*token]->fdtable = (fdnode*)n; //Smuggling ints in pointers to give compilers heart attacks.
     
+    dprintf(0, "in getDirEnt, pin\n");
+	pin_shared_region(name_region);
 	rpc_stat_t ret = nfs_readdir(&mnt_point , 0, fs_getDirEnt_complete, (uintptr_t)token);
     if(ret != RPC_OK) {
 		dprintf(0, "fs_getDirEnt failed with code %d\n", ret);
@@ -221,76 +222,61 @@ void fs_getDirEnt(char* kbuff, shared_region * name_region, seL4_CPtr reply, int
 void evt_getDirEnt_complete(void* data){
     evt_getDirEnt *event = (evt_getDirEnt*) data;
     uintptr_t token = event->token;
-    nfs_stat_t status = event->status;
-    int num_files = event->num_files;
-    char **file_names = event->file_names;
-    nfscookie_t nfscookie = event->nfscookie;
     free(event);
+
 	uint32_t t = *(uint32_t*)token;
 	t = (t << 24) >> 24; //Drop the upper 24 bits
 	fs_request* req = fs_req[t];
 
-	uint32_t files = ((*(uint32_t*)token) >> 8) + num_files;
-	if(nfscookie != 0 && files < req->fdIndex){
-		t += files << 8;
-		*(uint32_t*)token = t;		
-		nfs_readdir(&mnt_point, nfscookie, fs_getDirEnt_complete, (uintptr_t)token);
-		return;
-	}
 	seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
-	if(nfscookie == 0 && files < req->fdIndex){
-		seL4_SetMR(0, -1);	
-	} else if(files == req->fdIndex) {
-        seL4_SetMR(0, 0);
-    } else {
-		files = req->fdIndex - (files - num_files);//!!!
-        assert(files < num_files);
-        size_t n = ((size_t)req->fdtable < 1024) ? (size_t)req->fdtable : 1024;
-		strncpy(req->kbuff, file_names[files], n);
-        if(n == 1024) {
-            req->kbuff[1023] = '\0';
-        }
-		put_to_shared_region(req->s_region, req->kbuff);
-		seL4_SetMR(0,strlen(req->kbuff));	
-	}
+    put_to_shared_region(req->s_region, req->kbuff);
+    dprintf(0,"evt_getDirEnt_complete returning %s\n", req->kbuff);
+    seL4_SetMR(0,strlen(req->kbuff));	
 	seL4_Send(req->reply, tag);
+
 	cspace_delete_cap(cur_cspace, req->reply);
 	free(req->kbuff);
 	free_shared_region_list(req->s_region, 0);
 	fs_free_index(t);
 	free((uint32_t*)token);
-    free(file_names);
-}
-static int strcnt(char *str) {
-    for(int i = 0; i < MAX_FILE_SIZE; i++) {
-        if(str[i] == '\0') {
-            return i+1;
-        }
-    } 
-    return -1;
 }
 
 void fs_getDirEnt_complete(uintptr_t token, nfs_stat_t status, int num_files, char* file_names[], nfscookie_t nfscookie){
-    char **file_names2 = malloc(sizeof(char*) * num_files);
-    if(!file_names2) {
-        panic("Nomem: fs_getDirEnt");
-    }
-    for(int i = 0; i < num_files; i++) {
-        int n = strcnt(file_names[i]);
-        file_names2[i] = malloc(sizeof(char) * n);
-        if(!file_names2[i]) {
-            panic("Nomem: fs_getDirEnt");
-        }
-        strncpy(file_names2[i], file_names[i], n);
-    }
+    uint32_t t = *(uint32_t*)token;
+    t = (t << 24) >> 24; //Drop the upper 24 bits
+    fs_request* req = fs_req[t];
 
-    evt_getDirEnt *event = malloc(sizeof(evt_getDirEnt));
-    event->token = token;
-    event->status = status;
-    event->num_files = num_files;
-    event->file_names = file_names2;
-    event->nfscookie = nfscookie;
-    emit(GETDIRENT_COMPLETE, (void*)event);
+    uint32_t files = ((*(uint32_t*)token) >> 8) + num_files;
+    if(nfscookie != 0 && files < req->fdIndex){
+        t += files << 8;
+        *(uint32_t*)token = t;      
+        nfs_readdir(&mnt_point, nfscookie, fs_getDirEnt_complete, (uintptr_t)token);
+        return;
+    }
+    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0,0,0,1);
+    if(nfscookie == 0 && files < req->fdIndex){
+        seL4_SetMR(0, -1);  
+    } else if(files == req->fdIndex) {
+        seL4_SetMR(0, 0);
+    } else {
+        files = req->fdIndex - (files - num_files);//!!!
+        assert(files < num_files);
+        size_t n = ((size_t)req->fdtable < 1024) ? (size_t)req->fdtable : 1024;
+        strncpy(req->kbuff, file_names[files], n);
+        if(n == 1024) {
+            req->kbuff[1023] = '\0';
+        }
+        put_to_shared_region(req->s_region, req->kbuff);
+        dprintf(0, "in getDirEnt_complete, unpin\n");
+        seL4_SetMR(0,strlen(req->kbuff));   
+    }
+    unpin_shared_region(req->s_region);
+    seL4_Send(req->reply, tag);
+    cspace_delete_cap(cur_cspace, req->reply);
+    free(req->kbuff);
+    free_shared_region_list(req->s_region,0);
+    fs_free_index(t);
+    free((void*)token);
 }
 
 void fs_open(char* buff, fdnode* fdtable, fd_mode mode,seL4_CPtr reply){

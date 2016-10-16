@@ -250,7 +250,23 @@ void get_shared_buffer(shared_region *shared_region, size_t count, char *buf) {
     dprintf(1, "exiting get_shared_buffer \n");
 }
 
-
+//the regions struct is only maintained by kernel is thus trusted.
+void pin_shared_region(shared_region *shared_region) {
+    seL4_Word sos_vaddr;
+    while(shared_region) {
+        sos_vaddr = get_user_translation(shared_region->user_addr, shared_region->user_pd);
+        pin_frame_kvaddr(sos_vaddr);
+        shared_region = shared_region->next;
+    }
+}
+void unpin_shared_region(shared_region *shared_region) {
+    seL4_Word sos_vaddr;
+    while(shared_region) {
+        sos_vaddr = get_user_translation(shared_region->user_addr, shared_region->user_pd);
+        unpin_frame_kvaddr(sos_vaddr);
+        shared_region = shared_region->next;
+    }
+}
 //the regions struct is only maintained by kernel is thus trusted.
 void put_to_shared_region(shared_region *shared_region, char *buf) {
     uint32_t buffer_index = 0;
