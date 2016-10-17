@@ -151,6 +151,7 @@ int sos_map_page(pageDirectory * pd, uint32_t frame, seL4_Word vaddr,
 		dprintf(0, "Err code is %d\n", err);
 	}
 
+
     /* Map the user_phy_addr to sos */
     /*dprintf(0, "MAPPING paddr 0x%x -> 0x%x \n", ftable[frame].p_addr, VMEM_START + ftable[frame].p_addr);*/
 	return err;

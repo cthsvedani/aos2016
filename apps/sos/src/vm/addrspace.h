@@ -34,6 +34,7 @@ typedef struct sos_PageTableEntry{
     uint32_t index;
     unsigned int referenced : 1;
 	unsigned int modified : 1;
+	seL4_CapRights rights;
 }pageTableEntry;
 
 typedef struct sos_PageTable{

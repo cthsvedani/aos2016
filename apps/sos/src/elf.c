@@ -119,6 +119,7 @@ static int load_segment_into_vspace(pageDirectory * dest_as,
                        seL4_ARM_Default_VMAttributes);
 		ftable[frame].pte->modified = 1;
 		ftable[frame].backingIndex = 0;
+		ftable[frame].pte->rights = permissions;
         conditional_panic(err, "Failed to map to tty address space");
         /* Map the frame into sos address spaces */
         err = map_page(sos_cap, seL4_CapInitThreadPD, kvpage, seL4_AllRights, 

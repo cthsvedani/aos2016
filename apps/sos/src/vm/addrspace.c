@@ -50,20 +50,23 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
 	} else if(pd->pTables[dindex] != 0 && pd->pTables[dindex]->frameIndex[tindex].index != 0) {
 		if(!pd->pTables[dindex]->frameIndex[tindex].referenced){
 			dprintf(0, "Page Referenced\n");
-			if(!write){
-				sos_map_page(pd, pd->pTables[dindex]->frameIndex[tindex].index,
+			sos_map_page(pd, pd->pTables[dindex]->frameIndex[tindex].index,
 						 addr, seL4_CanRead, seL4_ARM_Default_VMAttributes);
-			} else {
-				sos_map_page(pd, pd->pTables[dindex]->frameIndex[tindex].index,
-						 addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
-			}
 			return 0;
 		} else {
-			dprintf(0, "Page Modified\n");
-			seL4_ARM_Page_Unmap(ftable[pd->pTables[dindex]->frameIndex[tindex].index].cptr);
-			sos_map_page(pd, pd->pTables[dindex]->frameIndex[tindex].index, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
-			pd->pTables[dindex]->frameIndex[tindex].modified = 1;
-			return 0;
+			if(pd->pTables[dindex]->frameIndex[tindex].rights & seL4_CanWrite){
+				dprintf(0, "Page Modified\n");
+				seL4_ARM_Page_Unmap(ftable[pd->pTables[dindex]->frameIndex[tindex].index].cptr);
+				sos_map_page(pd, pd->pTables[dindex]->frameIndex[tindex].index, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
+				pd->pTables[dindex]->frameIndex[tindex].modified = 1;
+				return 0;
+			}
+			else{
+				dprintf(0, "Attempted write to Read Only Page!\n");
+				seL4_TCB_ReadRegisters(sosh.tcb_cap, 0, 0, 2, &bob);
+				dprintf(0, "pc is 0x%x, sp is 0x%x\n", bob.pc, bob.sp);	
+				return -2;
+			}
 		}
 	}
 	region * reg = find_region(pd, addr); 
@@ -79,9 +82,9 @@ int vm_fault(pageDirectory * pd, seL4_Word addr, int write) {
             frame = page_fault(pd, 0); 
             dprintf(0, "Returned from page_fault\n");
 		}
-		int err = sos_map_page(pd, frame, addr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
-		ftable[frame].pte->modified = 1;
+		int err = sos_map_page(pd, frame, addr, seL4_CanRead, seL4_ARM_Default_VMAttributes);
 		ftable[frame].backingIndex = 0;
+		ftable[frame].pte->rights = seL4_AllRights;
 		if(err){
 			dprintf(0,"Page mapping at %x failed with error code %d\n",addr, err);
 			return -3;
@@ -98,6 +101,7 @@ int page_fault(pageDirectory * pd, seL4_Word addr) {
 		if(!setjmp(targ)){
 			pf_write_out(fr);
 		}
+		dprintf(0, "WO done on frame %d\n", j);
 		return j;	
 	} else {//A swapped out page is needed
 	    uint32_t dindex = VADDR_TO_PDINDEX(addr);
@@ -114,6 +118,8 @@ int page_fault(pageDirectory * pd, seL4_Word addr) {
 		sos_map_page(pd, frame, addr, seL4_CanRead, seL4_ARM_PageCacheable);
 		seL4_ARM_Page_Unify_Instruction(ftable[frame].cptr, 0, 4096);	
 		pd->pTables[dindex]->frameIndex[tindex].modified = 0;
+		dprintf(0, "RI done on frame %d\n", frame);
+		return frame;
 	}
 	return 0;
 }

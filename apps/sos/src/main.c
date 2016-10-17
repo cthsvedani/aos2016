@@ -198,7 +198,6 @@ void syscall_loop(seL4_CPtr ep) {
             }
         }else if(label == seL4_VMFault){
 			if (badge & TTY_EP_BADGE){
-                dprintf(0, "USER: vmfault \n");
 				seL4_CPtr reply_cap;
 				reply_cap = cspace_save_reply_cap(cur_cspace);
 				assert(reply_cap != CSPACE_NULL);
@@ -209,7 +208,8 @@ void syscall_loop(seL4_CPtr ep) {
 				else{
 					seL4_MessageInfo_t reply = seL4_MessageInfo_new(0,0,0,0);
 					seL4_Send(reply_cap,reply);
-                    cspace_free_slot(cur_cspace, reply_cap);
+					dprintf(0, "Back to you dave\n");
+					cspace_free_slot(cur_cspace, reply_cap);
 				}
 			}
         } else if(label == seL4_NoFault) {
@@ -363,16 +363,15 @@ void start_first_process(char* app_name, seL4_CPtr fault_ep) {
 			VM_FAULT_READ | VM_FAULT_WRITE | REGION_STACK);
     err = sos_map_page(sosh.pd, stack_frame,
                    PROCESS_STACK_TOP - (1 << seL4_PageBits),
-                   seL4_AllRights, seL4_ARM_Default_VMAttributes);
-    conditional_panic(err, "Unable to map stack IPC buffer for user app");
-	
+                   seL4_CanRead, seL4_ARM_Default_VMAttributes);
+    conditional_panic(err, "Unable to map stack buffer for user app");
+	ftable[stack_frame].pte->rights = seL4_AllRights;
 
     /* Map in the IPC buffer for the thread */
     err = sos_map_page(sosh.pd, sosh.ipc_frame,
                    PROCESS_IPC_BUFFER,
                    seL4_AllRights, seL4_ARM_Default_VMAttributes);
     conditional_panic(err, "Unable to map IPC buffer for user app");
-
     /* Start the new process */
     memset(&context, 0, sizeof(context));
     context.pc = elf_getEntryPoint(elf_base);

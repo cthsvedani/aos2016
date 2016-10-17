@@ -430,7 +430,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
 		return;
 	}
 
-    dprintf(1, "in fs_write swapping %d, f_ptr %d, count %d, reply %d, offset %d, i %d\n", swapping, f_ptr, count, reply, offset/4096, *i);
+    dprintf(1, "in fs_write swapping %d, f_ptr %d, count %d, reply %d, offset %d/%d, i %d\n", swapping, f_ptr, count, reply, offset/4096, offset % 4096, *i);
 	fs_req[*i]->reply = reply;
 	fs_req[*i]->fdIndex = count;
 	fs_req[*i]->fdtable = f_ptr;	
@@ -483,7 +483,7 @@ void fs_write(fdnode* f_ptr, shared_region* reg, size_t count, seL4_CPtr reply, 
             f_ptr->offset += size;
             fs_req[*i]->count++;
             fs_req[*i]->s_region = reg;
-            if(!reg) break;
+            if(!reg) return;
         } else {
             dprintf(0, "NFS_WRITE_FAILED\n");
         }

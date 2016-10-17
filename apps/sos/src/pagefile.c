@@ -136,6 +136,7 @@ void pf_write_out(frame* fr){
             dprintf(0, "PF Write error is %d\n", err);
         }
 		pin_frame(fr->index);
+		fr->backingIndex = 0;
 		fs_write(swapfile, reg, 4096, 0, swapfile->offset, 1);
 		syscall_loop(_sos_ipc_ep_cap);	
 		panic("Err..?");
@@ -143,6 +144,7 @@ void pf_write_out(frame* fr){
 		fr->pte->index = fr->backingIndex;	
 		seL4_ARM_Page_Unmap(fr->cptr);
 		fr->pte = NULL;
+		fr->backingIndex = 0;
 		return;
 	} else {
 		panic("Trying to swap out a frame without a pagetable reference?!");

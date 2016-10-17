@@ -111,7 +111,7 @@ int handle_sos_read(seL4_CPtr reply_cap, pageDirectory * pd, fdnode* fdtable){
                 panic("Buf allocation failed in read\n");
             }
             fdDevice* dev = (fdDevice*)fdtable[file].file;
-            //get_shared_buffer(shared_region, count, buf);
+			dprintf(0,"Passed Read to device\n"); 
             dev->read(dev->device, buf, count, reply_cap, shared_region);
         } else if(f_ptr->type == fdFile) {
             fs_read(f_ptr, shared_region, reply_cap, count, f_ptr->offset, 0);

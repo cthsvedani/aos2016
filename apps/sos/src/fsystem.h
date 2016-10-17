@@ -11,7 +11,7 @@
 #define MAX_NFS_REQUESTS 20 
 #define NFS_TIME 100000
 #define MAX_REQUEST_SIZE 4096
-#define WRITE_MULTI 1	
+#define WRITE_MULTI 4	
 #define MAX_FILE_SIZE 1024
 
 typedef struct request{
